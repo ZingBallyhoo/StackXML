@@ -11,6 +11,8 @@ namespace StackXML
     {
         /// <summary>Internal char buffer</summary>
         private char[] m_buffer;
+        /// <summary>Span over the internal char buffer</summary>
+        private Span<char> m_bufferSpan;
         /// <summary>Current write offset within <see cref="m_buffer"/></summary>
         private int m_currentOffset;
         /// <summary>Whether or not a node head is currently open (&gt; hasn't been written)</summary>
@@ -19,7 +21,7 @@ namespace StackXML
         public bool m_useCData;
 
         /// <summary>Span representing the tail of the internal buffer</summary>
-        private Span<char> m_writeSpan => new Span<char>(m_buffer).Slice(m_currentOffset);
+        private Span<char> m_writeSpan => m_bufferSpan.Slice(m_currentOffset);
         
         /// <summary>
         /// Create a new XmlWriteBuffer
@@ -39,6 +41,7 @@ namespace StackXML
         {
             m_pendingNodeHeadClose = false;
             m_buffer = ArrayPool<char>.Shared.Rent(1024);
+            m_bufferSpan = m_buffer;
             m_currentOffset = 0;
 
             m_useCData = true;
@@ -48,9 +51,14 @@ namespace StackXML
         private void Resize()
         {
             var newBuffer = ArrayPool<char>.Shared.Rent(m_buffer.Length * 2); // double size
-            Buffer.BlockCopy(m_buffer, 0, newBuffer, 0, m_buffer.Length * sizeof(char)); // count is in bytes
+            var newBufferSpan = new Span<char>(newBuffer);
+
+            var usedBufferSpan = m_bufferSpan.Slice(0, m_currentOffset);
+            usedBufferSpan.CopyTo(newBufferSpan);
+            
             ArrayPool<char>.Shared.Return(m_buffer);
             m_buffer = newBuffer;
+            m_bufferSpan = newBufferSpan;
         }
 
         /// <summary>Record of a node that is currently being written into the buffer</summary>
