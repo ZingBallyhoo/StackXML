@@ -149,9 +149,9 @@ public partial class ListContainer
 public partial class MusicTrack
 {
     [XmlField("id")]
-    
     public int m_id;
-    [XmlBody("n")
+    
+    [XmlBody("n")]
     public string m_name;
     
     [XmlField("artists"), XmlSplitStr(',')]
