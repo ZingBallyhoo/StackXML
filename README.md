@@ -84,7 +84,8 @@ Intel Core i5-6600K CPU 3.50GHz (Skylake), 1 CPU, 4 logical and 4 physical cores
 [XmlCls("test"))]
 public partial class Test
 {
-    [XmlField("attribute")] public string m_attribute;
+    [XmlField("attribute")]
+    public string m_attribute;
 }
 ```
 ### Text body
@@ -103,7 +104,8 @@ CData can be diabled by setting `useCData` to false for reading and writing
 [XmlCls("test2"))]
 public partial class Test2
 {
-    [XmlBody("name")] public string m_name;
+    [XmlBody("name")]
+    public string m_name;
 }
 ```
 ### Lists
@@ -119,13 +121,18 @@ public partial class Test2
 [XmlCls("listItem"))]
 public partial class ListItem
 {
-    [XmlField("name")] public string m_name;
-    [XmlField("name")] public int m_age; // could also be byte, uint etc
+    [XmlField("name")]
+    public string m_name;
+    
+    [XmlField("name")]
+    public int m_age; // could also be byte, uint etc
 }
+
 [XmlCls("container")]
 public partial class ListContainer
 {
-    [XmlBody()] public List<ListItem> m_items; // no explicit name, is taken from XmlCls
+    [XmlBody()]
+    public List<ListItem> m_items; // no explicit name, is taken from XmlCls
 }
 ```
 ### Delimited attributes
@@ -141,9 +148,16 @@ public partial class ListContainer
 [XmlCls("musicTrack"))]
 public partial class MusicTrack
 {
-    [XmlField("id")] public int m_id;
-    [XmlBody("n")] public string m_name;
-    [XmlField("artists")] [XmlSplitStr(',')] public List<int> m_artists;
-    [XmlBody("tags") public List<string> m_tags;
+    [XmlField("id")]
+    
+    public int m_id;
+    [XmlBody("n")
+    public string m_name;
+    
+    [XmlField("artists"), XmlSplitStr(',')]
+    public List<int> m_artists;
+    
+    [XmlBody("tags")]
+    public List<string> m_tags;
 }
 ```
