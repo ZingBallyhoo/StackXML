@@ -114,19 +114,19 @@ namespace StackXML.Tests
                 m_int = -1,
                 m_uint = uint.MaxValue,
                 m_double = 3.14,
-                m_string = "david and tim",
+                m_string = "david and tim<",
                 m_bool = true,
                 m_byte = 128
             };
 
             const string expected =
-                "<attrs int='-1' uint='4294967295' double='3.14' bool='1' byte='128' string='david and tim'/>";
+                "<attrs int='-1' uint='4294967295' double='3.14' bool='1' byte='128' string='david and tim&lt;'/>";
             const string expectedCompatible =
-                "<attrs int='-1'uint='4294967295'double='3.14'bool='1'byte='128'string='david and tim'/>";
+                "<attrs int='-1'uint='4294967295'double='3.14'bool='1'byte='128'string='david and tim&lt;'/>";
             const string expectedWithDecl =
-                "<?xml version='1.0'?><attrs int='-1' uint='4294967295' double='3.14' bool='1' byte='128' string='david and tim'/>";
+                "<?xml version='1.0'?><attrs int='-1' uint='4294967295' double='3.14' bool='1' byte='128' string='david and tim&lt;'/>";
             const string expectedWithComment =
-                "<?xml version='1.0'?><!--<attrs wont be parsed in comment>--><attrs int='-1' uint='4294967295' double='3.14' bool='1' byte='128' string='david and tim'/>";
+                "<?xml version='1.0'?><!--<attrs wont be parsed in comment>--><attrs int='-1' uint='4294967295' double='3.14' bool='1' byte='128' string='david and tim&lt;'/>";
             
             var result = XmlWriteBuffer.SerializeStatic(truth);
             Assert.Equal(expected, result);
@@ -147,20 +147,21 @@ namespace StackXML.Tests
         }
         
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public static void SerializeStringBodies(bool useCData)
+        [InlineData(CDataMode.Off)]
+        [InlineData(CDataMode.On)]
+        [InlineData(CDataMode.OnEncode)]
+        public static void SerializeStringBodies(CDataMode cdataMode)
         {
             var truth = new StringBodies
             {
-               m_a = "blah1",
+               m_a = "blah1<>&&",
                m_b = "blah2",
                m_null = null,
                m_empty = string.Empty
             };
-            var result = XmlWriteBuffer.SerializeStatic(truth, useCData);
+            var result = XmlWriteBuffer.SerializeStatic(truth, cdataMode);
             
-            var deserialized = XmlReadBuffer.ReadStatic<StringBodies>(result, useCData);
+            var deserialized = XmlReadBuffer.ReadStatic<StringBodies>(result, cdataMode);
             Assert.Equal(truth.m_a, deserialized.m_a);
             Assert.Equal(truth.m_b, deserialized.m_b);
             //Assert.Equal(truth.m_null, deserialized.m_null); // todo: do we want to avoid writing nulls?? currently empty string
@@ -168,17 +169,18 @@ namespace StackXML.Tests
         }
         
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public static void SerializeStringBody(bool useCData)
+        [InlineData(CDataMode.Off)]
+        [InlineData(CDataMode.On)]
+        [InlineData(CDataMode.OnEncode)]
+        public static void SerializeStringBody(CDataMode cdataMode)
         {
             var truth = new StringBody()
             {
-                m_fullBody = "asdjhasjkdhakjsdhjkahsdjhkasdhasd"
+                m_fullBody = "asdjhasjkdhakjsdhjkahsdjhkasdhasd<>&&"
             };
-            var result = XmlWriteBuffer.SerializeStatic(truth, useCData);
+            var result = XmlWriteBuffer.SerializeStatic(truth, cdataMode);
             
-            var deserialized = XmlReadBuffer.ReadStatic<StringBody>(result, useCData);
+            var deserialized = XmlReadBuffer.ReadStatic<StringBody>(result, cdataMode);
             Assert.Equal(truth.m_fullBody, deserialized.m_fullBody);
         }
 

@@ -5,44 +5,47 @@ namespace StackXML.Str
 {
     public readonly ref struct SpanStr
     {
-        public readonly ReadOnlySpan<char> m_data;
+        private readonly ReadOnlySpan<char> m_data;
+        private readonly string m_str;
+        
+        public int Length => m_str != null ? m_str.Length : m_data.Length;
 
         public SpanStr(ReadOnlySpan<char> data)
         {
             m_data = data;
+            m_str = null;
         }
         
         public SpanStr(string str)
         {
-            m_data = str.AsSpan();
+            m_str = str;
+            m_data = default;
         }
-
-        public int Length => m_data.Length;
 
         public bool Contains(char c)
         {
-            //return m_data.Contains(c);
+            if (m_str != null) return m_str.IndexOf(c) != -1;
             return m_data.IndexOf(c) != -1;
         }
-
+        
         public static bool operator ==(SpanStr left, SpanStr right)
         {
-            return left.m_data.SequenceEqual(right);
+            if (left.m_str != null && right.m_str != null) return left.m_str == right.m_str; // fast path...
+            return ((ReadOnlySpan<char>)left).SequenceEqual(right); // turn both into spans
         }
-
         public static bool operator !=(SpanStr left, SpanStr right) => !(left == right);
-
+        
         public static bool operator ==(SpanStr left, string right)
         {
-            return left.m_data.SequenceEqual(right);
+            return left == new SpanStr(right);
         }
-
         public static bool operator !=(SpanStr left, string right) => !(left == right);
 
-        public char this[int index] => m_data[index];
+        public readonly char this[int index] => m_str != null ? m_str[index] : m_data[index];
 
         public static implicit operator ReadOnlySpan<char>(SpanStr str)
         {
+            if (str.m_str != null) return str.m_str.AsSpan();
             return str.m_data;
         }
         
@@ -53,6 +56,7 @@ namespace StackXML.Str
 
         public override string ToString()
         {
+            if (m_str != null) return m_str; 
             return m_data.ToString();
         }
         

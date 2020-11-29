@@ -200,7 +200,7 @@ namespace StackXML.Generator
         
         private void WriteAttrParseMethod(IndentedTextWriter writer, ClassGenInfo classGenInfo)
         {
-            writer.WriteLine("public override bool ParseAttribute(ref XmlReadBuffer buffer, ulong hash, ReadOnlySpan<char> value)");
+            writer.WriteLine("public override bool ParseAttribute(ref XmlReadBuffer buffer, ulong hash, SpanStr value)");
             writer.WriteLine("{");
             writer.Indent++;
             writer.WriteLine("if (base.ParseAttribute(ref buffer, hash, value)) return true;");

@@ -34,10 +34,9 @@ Premature optimisation :)
   - Using StrReader and StrWriter, see below
 - StrReader and StrWriter classes, for reading and writing (comma usually) delimited strings with 0 allocations.
   - Can be used in a fully structed way by adding `StrField` attributes to fields on a `ref partial struct` (not compatible with XmlSplitStr, maybe future consideration)
+- Agnostic logging through [LibLog](https://github.com/damianh/LibLog)
 
 ## Quirks
-- Encoding and decoding of text is not supporterd, but its something I really do need to add.
-  - Encode implementation is done and benchmarked, see `XmlWriteBuffer.EncodeText` and `XmlEncodeBenchmark`
 - Invalid data between elements is ignored
   - `<test>anything here is completely missed<testInner/><test/>`
 - Spaces between attributes is not required by the deserializer
@@ -50,12 +49,15 @@ Premature optimisation :)
 - Types from another assembly can't be used as a field/body. Needs fixing
 - All elements in the data to parse must be defined in the type in one way or another, otherwise an exception will be thrown.
   - The deserializer relies on complete parsing and has no way of skipping elements
-- Comments within a primitive type body are not stripped and will be included in the parsed value (future consideration...)
-  - `<n><!--this will be included in the string-->hi<n>`
+- Comments within a primitive type body will cause the parser to crash (future consideration...)
+  - `<n><!--uh oh-->hi<n>`
 - Null strings are currently output exactly the same as empty strings... might need changing
 - The source generator emits a parameterless constructor on all XML types that initalizes `List<T>` bodies to an empty list
   - Trying to serialize a null list currently crashes the serializer....
-- Agnostic logging through [LibLog](https://github.com/damianh/LibLog)
+- When decoding XML text an extra allocation of the input string is required
+  - WebUtility.HtmlDecode does not provde an overload taking a span, but the method taking a string turns it into a span anyway.. hmm
+  - The decode is avoided where possible
+- Would be nice to be able to use [ValueStringBuilder](https://github.com/dotnet/runtime/blob/master/src/libraries/Common/src/System/Text/ValueStringBuilder.cs). See https://github.com/dotnet/runtime/issues/25587
 
 ## Performance
 Very simple benchmark, loading a single element and getting the string value of its attribute `attribute`
@@ -94,7 +96,7 @@ public partial class Test
     <name><![CDATA[Hello world]]></name>
 </test2>
 ```
-CData can be diabled by setting `useCData` to false for reading and writing
+CData can be configured by setting `cdataMode` for serializing and deserializing
 ```xml
 <test2>
     <name>Hello world</name>
@@ -124,7 +126,7 @@ public partial class ListItem
     [XmlField("name")]
     public string m_name;
     
-    [XmlField("name")]
+    [XmlField("age")]
     public int m_age; // could also be byte, uint etc
 }
 

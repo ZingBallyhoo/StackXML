@@ -1,4 +1,5 @@
 using System;
+using StackXML.Str;
 
 namespace StackXML
 {
@@ -16,20 +17,14 @@ namespace StackXML
             return false;
         }
         
-        //public virtual bool ParseSubBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, 
         public virtual bool ParseSubBody(ref XmlReadBuffer buffer, ulong hash, 
             ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan, 
             ref int end, ref int endInner)
         {
             return false;
         }
-
-        /// <summary>Callback to deserialize an attribute</summary>
-        /// <param name="name">Name of the attribute</param>
-        /// <param name="value">Text value of the attribute</param>
-        /// <returns></returns>
-        //public virtual bool ParseAttribute(ReadOnlySpan<char> name, ReadOnlySpan<char> value)
-        public virtual bool ParseAttribute(ref XmlReadBuffer buffer, ulong hash, ReadOnlySpan<char> value)
+        
+        public virtual bool ParseAttribute(ref XmlReadBuffer buffer, ulong hash, SpanStr value)
         {
             return false;
         }

@@ -18,7 +18,8 @@ namespace StackXML
         /// <summary>Whether or not a node head is currently open (&gt; hasn't been written)</summary>
         private bool m_pendingNodeHeadClose;
 
-        public bool m_useCData;
+        /// <summary>Type of text blocks to serialize</summary>
+        public CDataMode m_cdataMode;
 
         /// <summary>Span representing the tail of the internal buffer</summary>
         private Span<char> m_writeSpan => m_bufferSpan.Slice(m_currentOffset);
@@ -44,7 +45,7 @@ namespace StackXML
             m_bufferSpan = m_buffer;
             m_currentOffset = 0;
 
-            m_useCData = true;
+            m_cdataMode = CDataMode.On;
         }
         
         /// <summary>Resize internal char buffer (<see cref="m_buffer"/>)</summary>
@@ -116,21 +117,22 @@ namespace StackXML
         public void PutCData(ReadOnlySpan<char> text)
         {
             CloseNodeHeadForBodyIfOpen();
-            if (m_useCData)
+            if (m_cdataMode == CDataMode.Off)
             {
-                PutString(XmlReadBuffer.c_cdataStart);
-                PutString(text);
-                PutString(XmlReadBuffer.c_cdataEnd);
+                EncodeText(text);
             } else
             {
-                    PutString(text);
+                PutString(XmlReadBuffer.c_cdataStart);
+                if (m_cdataMode == CDataMode.OnEncode) EncodeText(text);
+                else PutString(text); // CDataMode.On
+                PutString(XmlReadBuffer.c_cdataEnd);
             }
         }
         
         public void PutAttribute(ReadOnlySpan<char> name, ReadOnlySpan<char> value)
         {
             StartAttrCommon(name);
-            PutString(value);
+            EncodeText(value, true);
             EndAttrCommon();
         }
 
@@ -289,11 +291,11 @@ namespace StackXML
         /// <param name="obj">The object to serialize</param>
         /// <param name="useCData">Should text be written as CDATA</param>
         /// <returns>Serialized XML</returns>
-        public static string SerializeStatic(IXmlSerializable obj, bool useCData = true)
+        public static string SerializeStatic(IXmlSerializable obj, CDataMode cdataMode=CDataMode.On)
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             var writer = Create();
-            writer.m_useCData = useCData;
+            writer.m_cdataMode = cdataMode;
             try
             {
                 obj.Serialize(ref writer);

@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Net;
 using StackXML.Logging;
+using StackXML.Str;
 
 namespace StackXML
 {
@@ -16,10 +18,8 @@ namespace StackXML
         /// <summary>Abort parsing immediately</summary>
         public bool m_abort;
         
-        /// <summary>
-        /// If false, will parse raw text instead of expecting CDATA blocks
-        /// </summary>
-        public bool m_useCData;
+        /// <summary>Type of text blocks to deserialize</summary>
+        public CDataMode m_cdataMode;
 
         /// <summary>Current depth of calls to <see cref="ReadInto"/></summary>
         public int m_depth;
@@ -68,9 +68,10 @@ namespace StackXML
                 if (quoteEndIdx == -1) throw new InvalidDataException("unable to find pair end quote");
 
                 var attributeValue = attributeValueSpan.Slice(0, quoteEndIdx);
+                var attributeValueDecoded = DecodeText(attributeValue);
 
                 var nameHash = IXmlSerializable.HashName(attributeName);
-                var assigned = obj.ParseAttribute(ref this,nameHash, attributeValue);
+                var assigned = obj.ParseAttribute(ref this,nameHash, attributeValueDecoded);
                 if (m_abort) return -1;
                 if (!assigned)
                 {
@@ -274,23 +275,38 @@ namespace StackXML
             return span.Length;
         }
         
-        private ReadOnlySpan<char> DeserializeElementRawInnerText(ReadOnlySpan<char> span, out int endEndIdx)
+        private SpanStr DeserializeElementRawInnerText(ReadOnlySpan<char> span, out int endEndIdx)
         {
             endEndIdx = span.IndexOf('<'); // find start of next node
             if (endEndIdx == -1) throw new InvalidDataException("unable to find end of text");
-            return span.Slice(0, endEndIdx);
+            var textSlice = span.Slice(0, endEndIdx);
+            return DecodeText(textSlice);
+        }
+
+        /// <summary>Decode XML encoded text</summary>
+        /// <param name="input"></param>
+        /// <returns>Decoded text</returns>
+        private SpanStr DecodeText(ReadOnlySpan<char> input)
+        {
+            var andIndex = input.IndexOf('&');
+            if (andIndex == -1)
+            {
+                // no need to decode :)
+                return new SpanStr(input);
+            }
+            return new SpanStr(WebUtility.HtmlDecode(input.ToString())); // todo: allocates input as string, gross
         }
 
         /// <summary>
-        /// Deserialize XML element inner text. Switches between CDATA and raw text on <see cref="m_useCData"/>
+        /// Deserialize XML element inner text. Switches between CDATA and raw text on <see cref="m_cdataMode"/>
         /// </summary>
         /// <param name="span">Span at the beginning of the element's inner text</param>
         /// <param name="endEndIdx">The index of the end of the text within <see cref="span"/></param>
         /// <returns>Deserialized inner text data</returns>
         /// <exception cref="InvalidDataException">The bounds of the text could not be determined</exception>
-        public ReadOnlySpan<char> DeserializeCDATA(ReadOnlySpan<char> span, out int endEndIdx)
+        public SpanStr DeserializeCDATA(ReadOnlySpan<char> span, out int endEndIdx)
         {
-            if (!m_useCData)
+            if (m_cdataMode == CDataMode.Off)
             {
                 return DeserializeElementRawInnerText(span, out endEndIdx);
             }
@@ -300,11 +316,17 @@ namespace StackXML
 
             var endIdx = span.IndexOf(c_cdataEnd);
             if (endIdx == -1) throw new InvalidDataException("unable to find end of cdata");
+            
+            endEndIdx = c_cdataEnd.Length + endIdx;
 
             var stringData = span.Slice(c_cdataStart.Length, endIdx - c_cdataStart.Length);
-
-            endEndIdx = c_cdataEnd.Length + endIdx;
-            return stringData;
+            if (m_cdataMode == CDataMode.OnEncode)
+            {
+                return DecodeText(stringData);
+            } else
+            {
+                return new SpanStr(stringData);
+            }
         }
 
         /// <summary>
@@ -336,14 +358,14 @@ namespace StackXML
         /// Parse into a new instance <typeparam name="T"/> without manually creating a XmlReadBuffer
         /// </summary>
         /// <param name="span">Text to parse</param>
-        /// <param name="useCData"><see cref="m_useCData"/></param>
+        /// <param name="cdataMode"><see cref="m_cdataMode"/></param>
         /// <typeparam name="T">Type to parse</typeparam>
         /// <returns>The created instance</returns>
-        public static T ReadStatic<T>(ReadOnlySpan<char> span, bool useCData=true) where T: IXmlSerializable, new()
+        public static T ReadStatic<T>(ReadOnlySpan<char> span, CDataMode cdataMode=CDataMode.On) where T: IXmlSerializable, new()
         {
             var reader = new XmlReadBuffer
             {
-                m_useCData = useCData
+                m_cdataMode = cdataMode
             };
             return reader.Read<T>(span);
         }
