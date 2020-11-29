@@ -271,7 +271,7 @@ namespace StackXML.Generator
                     writer.WriteLine($"{StrGenerator.GetWriterForType(typeToRead, "val")};");
                     writer.Indent--;
                     writer.WriteLine("}");
-                    writer.WriteLine($"buffer.PutAttribute(\"{field.m_xmlName}\", writer.Built);");
+                    writer.WriteLine($"buffer.PutAttribute(\"{field.m_xmlName}\", writer.m_builtSpan);");
                     writer.WriteLine("writer.Dispose();");
 
                     writer.Indent--;

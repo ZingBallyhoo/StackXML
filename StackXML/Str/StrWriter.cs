@@ -15,7 +15,7 @@ namespace StackXML.Str
         private int m_currIdx;
         private bool m_isFirst;
         
-        public SpanStr m_builtSpan => new SpanStr(m_buffer.Slice(0, m_currIdx));
+        public ReadOnlySpan<char> m_builtSpan => m_buffer.Slice(0, m_currIdx);
         
         public static int s_maxSize = 256;
 
@@ -85,7 +85,7 @@ namespace StackXML.Str
             if (terminate) PutRaw('\0');
         }
 
-        public ReadOnlySpan<char> AsSpan(bool terminate)
+        public ReadOnlySpan<char> AsSpan(bool terminate=false)
         {
             AssertWriteable();
             
