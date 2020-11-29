@@ -43,7 +43,6 @@ namespace StackXML
         /// <returns>Position within <param name="currSpan"/> which is at the end of the attribute list</returns>
         private int DeserializeAttributes(ReadOnlySpan<char> currSpan, int closeBraceIdx, int position, IXmlSerializable obj)
         {
-            s_logger.Debug("test");
             while (position < closeBraceIdx)
             {
                 var spaceSpan = currSpan.Slice(position, closeBraceIdx-position);
