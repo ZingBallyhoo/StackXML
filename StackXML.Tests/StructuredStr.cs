@@ -30,7 +30,18 @@ namespace StackXML.Tests
             var writer = new StrWriter(separator);
             input.Serialize(ref writer);
             
-            var builtString = writer.BuildToStr();
+            var builtString = writer.ToString();
+            bool exceptionThrown = false;
+            try
+            {
+                writer.PutRaw('\0');
+                Assert.True(false); // lol
+            } catch (ObjectDisposedException)
+            {
+                exceptionThrown = true;
+                // good
+            }
+            Assert.True(exceptionThrown);
             var reader = new StrReader(builtString.AsSpan(), separator);
 
             var output = new GeneratedClass();

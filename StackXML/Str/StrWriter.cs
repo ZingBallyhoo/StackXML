@@ -11,13 +11,11 @@ namespace StackXML.Str
         public readonly char m_separator;
         public bool m_separatorAtEnd;
 
-        public bool m_finished;
-
         private char[] m_backing;
         private int m_currIdx;
         private bool m_isFirst;
         
-        public SpanStr Built => new SpanStr(m_buffer.Slice(0, m_currIdx));
+        public SpanStr m_builtSpan => new SpanStr(m_buffer.Slice(0, m_currIdx));
         
         public static int s_maxSize = 256;
 
@@ -28,7 +26,6 @@ namespace StackXML.Str
             
             m_currIdx = 0;
             m_isFirst = true;
-            m_finished = false;
             
             m_separator = separator;
             m_separatorAtEnd = false;
@@ -36,8 +33,7 @@ namespace StackXML.Str
 
         private void AssertWriteable()
         {
-            if (m_finished) throw new ObjectDisposedException("StrWriter");
-            if (m_buffer == null) throw new ObjectDisposedException("StrWriter");
+            if (m_backing == null) throw new ObjectDisposedException("StrWriter");
         }
 
         private void PutSeparator()
@@ -83,33 +79,26 @@ namespace StackXML.Str
             m_currIdx += str.Length;
         }
 
-        public void Finish()
+        public void Finish(bool terminate)
         {
-            if (m_finished) return;
             if (m_separatorAtEnd) PutRaw(m_separator);
-        }
-        
-        public void FinishZeroTerminated()
-        {
-            if (m_finished) return;
-            Finish();
-            PutRaw('\0');
+            if (terminate) PutRaw('\0');
         }
 
-        public SpanStr BuildToSpanStr()
+        public ReadOnlySpan<char> AsSpan(bool terminate)
+        {
+            AssertWriteable();
+            
+            Finish(terminate);
+            return m_builtSpan;
+        }
+        
+        public override string ToString()
         {
             AssertWriteable();
 
-            Finish();
-            return Built;
-        }
-        
-        public string BuildToStr()
-        {
-            AssertWriteable();
-
-            Finish();
-            var str = Built.ToString();
+            Finish(false);
+            var str = m_builtSpan.ToString();
             Dispose();
             return str;
         }

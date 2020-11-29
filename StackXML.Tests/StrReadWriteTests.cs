@@ -18,7 +18,7 @@ namespace StackXML.Tests
             writer.PutDouble(5.6);
             writer.PutInt(255);
 
-            var built = writer.BuildToStr();
+            var built = writer.ToString();
             
             Assert.Equal(c_target, built);
         }
