@@ -6,7 +6,7 @@ Premature optimisation :)
 
 ## Setup
 - StackXML targets netstandard2.1 which means back to .NET Core 3.0 is supported, but I would recommend .NET 5
-- Add the folowing to your project to reference the serializer and enable the source generator
+- Add the following to your project to reference the serializer and enable the source generator
 ```xml
 <ItemGroup>
     <ProjectReference Include="..\StackXML\StackXML.csproj" />
@@ -33,7 +33,7 @@ Premature optimisation :)
   - `[XmlField("list")] [XmlSplitStr(',')] public List<int> m_list;`
   - Using StrReader and StrWriter, see below
 - StrReader and StrWriter classes, for reading and writing (comma usually) delimited strings with 0 allocations.
-  - Can be used in a fully structed way by adding `StrField` attributes to fields on a `ref partial struct` (not compatible with XmlSplitStr, maybe future consideration)
+  - Can be used in a fully structured way by adding `StrField` attributes to fields on a `ref partial struct` (not compatible with XmlSplitStr, maybe future consideration)
 - Agnostic logging through [LibLog](https://github.com/damianh/LibLog)
 
 ## Quirks
@@ -52,10 +52,10 @@ Premature optimisation :)
 - Comments within a primitive type body will cause the parser to crash (future consideration...)
   - `<n><!--uh oh-->hi<n>`
 - Null strings are currently output exactly the same as empty strings... might need changing
-- The source generator emits a parameterless constructor on all XML types that initalizes `List<T>` bodies to an empty list
+- The source generator emits a parameterless constructor on all XML types that initializes `List<T>` bodies to an empty list
   - Trying to serialize a null list currently crashes the serializer....
 - When decoding XML text an extra allocation of the input string is required
-  - WebUtility.HtmlDecode does not provde an overload taking a span, but the method taking a string turns it into a span anyway.. hmm
+  - WebUtility.HtmlDecode does not provide an overload taking a span, but the method taking a string turns it into a span anyway.. hmm
   - The decode is avoided where possible
 - Would be nice to be able to use [ValueStringBuilder](https://github.com/dotnet/runtime/blob/master/src/libraries/Common/src/System/Text/ValueStringBuilder.cs). See https://github.com/dotnet/runtime/issues/25587
 
