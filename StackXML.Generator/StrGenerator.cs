@@ -301,7 +301,7 @@ namespace StackXML.Generator
                 "Int32" => "reader.GetInt()",
                 "Double" => "reader.GetDouble()",
                 "String" => "reader.GetString().ToString()",
-                "SpanStr" => "new SpanStr(reader.GetString())",
+                "SpanStr" => "reader.GetSpanString()",
                 _ => throw new NotImplementedException($"GetReaderForType: {type}")
             };
             return result;

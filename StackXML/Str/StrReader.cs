@@ -20,7 +20,13 @@ namespace StackXML.Str
             m_enumerator = enumerator;
         }
         
-        public SpanStr GetString()
+        public ReadOnlySpan<char> GetString()
+        {
+            if (!m_enumerator.MoveNext()) return default;
+            return m_str[m_enumerator.Current];
+        }
+        
+        public SpanStr GetSpanString()
         {
             if (!m_enumerator.MoveNext()) return default;
             return new SpanStr(m_str[m_enumerator.Current]);
@@ -48,7 +54,7 @@ namespace StackXML.Str
             while (HasRemaining())
             {
                 var str = GetString();
-                lst.Add((string)str);
+                lst.Add(str.ToString());
             }
             return lst;
         }

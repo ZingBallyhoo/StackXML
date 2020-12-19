@@ -24,24 +24,22 @@ namespace StackXML.Str
 
         public bool Contains(char c)
         {
-            if (m_str != null) return m_str.IndexOf(c) != -1;
-            return m_data.IndexOf(c) != -1;
+            return ((ReadOnlySpan<char>)this).IndexOf(c) != -1;
         }
         
         public static bool operator ==(SpanStr left, SpanStr right)
         {
-            if (left.m_str != null && right.m_str != null) return left.m_str == right.m_str; // fast path...
             return ((ReadOnlySpan<char>)left).SequenceEqual(right); // turn both into spans
         }
         public static bool operator !=(SpanStr left, SpanStr right) => !(left == right);
         
         public static bool operator ==(SpanStr left, string right)
         {
-            return left == new SpanStr(right);
+            return ((ReadOnlySpan<char>)left).SequenceEqual(right);
         }
         public static bool operator !=(SpanStr left, string right) => !(left == right);
 
-        public readonly char this[int index] => m_str != null ? m_str[index] : m_data[index];
+        public readonly char this[int index] => ((ReadOnlySpan<char>)this)[index];
 
         public static implicit operator ReadOnlySpan<char>(SpanStr str)
         {
