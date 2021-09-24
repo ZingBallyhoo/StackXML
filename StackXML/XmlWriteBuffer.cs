@@ -17,9 +17,19 @@ namespace StackXML
         private int m_currentOffset;
         /// <summary>Whether or not a node head is currently open (&gt; hasn't been written)</summary>
         private bool m_pendingNodeHeadClose;
+        /// <summary>Current depth to indent</summary>
+        private int m_currentNodeDepth;
+        /// <summary>asdasdasd</summary>
+        private bool m_hasHadAnyNodes;
 
         /// <summary>Type of text blocks to serialize</summary>
         public CDataMode m_cdataMode;
+
+        /// <summary>String to use for indentation</summary>
+        public string? m_indentString;
+
+        /// <summary>asdasd</summary>
+        public bool m_canUseShortNodeForm;
 
         /// <summary>Span representing the tail of the internal buffer</summary>
         private Span<char> m_writeSpan => m_bufferSpan.Slice(m_currentOffset);
@@ -44,8 +54,12 @@ namespace StackXML
             m_buffer = ArrayPool<char>.Shared.Rent(1024);
             m_bufferSpan = m_buffer;
             m_currentOffset = 0;
+            m_currentNodeDepth = 0;
+            m_hasHadAnyNodes = false;
 
             m_cdataMode = CDataMode.On;
+            m_indentString = null;
+            m_canUseShortNodeForm = true;
         }
         
         /// <summary>Resize internal char buffer (<see cref="m_buffer"/>)</summary>
@@ -90,6 +104,17 @@ namespace StackXML
         {
             CloseNodeHeadForBodyIfOpen();
             
+            if (m_indentString != null)
+            {
+                if (m_hasHadAnyNodes) PutChar('\n');
+                for (var i = 0; i < m_currentNodeDepth; i++)
+                {
+                    PutString(m_indentString);
+                }
+                m_currentNodeDepth++;
+                m_hasHadAnyNodes = true;
+            }
+            
             PutChar('<');
             PutString(name);
             m_pendingNodeHeadClose = true;
@@ -100,16 +125,35 @@ namespace StackXML
         /// <param name="record">Record describing the open node</param>
         public void EndNode(ref NodeRecord record)
         {
+            if (m_indentString != null)
+            {
+                m_currentNodeDepth--;
+            }
+
             if (!m_pendingNodeHeadClose)
             {
+                if (m_indentString != null)
+                {
+                    PutChar('\n');
+                    for (var i = 0; i < m_currentNodeDepth; i++)
+                    {
+                        PutString(m_indentString);
+                    }
+                }
+                
                 PutString("</");
                 PutString(record.m_name);
                 PutChar('>');
-            } else
+            } else if (!m_canUseShortNodeForm)
+            {
+                PutString("></");
+                PutString(record.m_name);
+                PutChar('>');
+            } else 
             {
                 PutString("/>");
-                m_pendingNodeHeadClose = false;
             }
+            m_pendingNodeHeadClose = false;
         }
         
         /// <summary>Escape and put text into the buffer</summary>
