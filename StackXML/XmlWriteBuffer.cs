@@ -3,26 +3,20 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using CommunityToolkit.HighPerformance.Buffers;
 
 namespace StackXML
 {
     /// <summary>Stack based XML serializer</summary>
     public ref struct XmlWriteBuffer
     {
-        /// <summary>Internal char buffer</summary>
-        private char[] m_buffer;
-        /// <summary>Span over the internal char buffer</summary>
-        private Span<char> m_bufferSpan;
-        /// <summary>Current write offset within <see cref="m_buffer"/></summary>
-        private int m_currentOffset;
+        private readonly ArrayPoolBufferWriter<char> m_writer;
+        
         /// <summary>Whether or not a node head is currently open (&gt; hasn't been written)</summary>
         private bool m_pendingNodeHeadClose;
 
         /// <summary>Type of text blocks to serialize</summary>
         public CDataMode m_cdataMode;
-
-        /// <summary>Span representing the tail of the internal buffer</summary>
-        private Span<char> m_writeSpan => m_bufferSpan.Slice(m_currentOffset);
         
         /// <summary>
         /// Create a new XmlWriteBuffer
@@ -30,36 +24,24 @@ namespace StackXML
         /// <returns>XmlWriteBuffer instance</returns>
         public static XmlWriteBuffer Create()
         {
-            return new XmlWriteBuffer(0);
+            return new XmlWriteBuffer();
         }
         
         /// <summary>
         /// Actual XmlWriteBuffer constructor
         /// </summary>
-        /// <param name="_">blank parameter</param>
-        // ReSharper disable once UnusedParameter.Local
-        private XmlWriteBuffer(int _=0)
+        public XmlWriteBuffer()
         {
+            m_writer = new ArrayPoolBufferWriter<char>();
             m_pendingNodeHeadClose = false;
-            m_buffer = ArrayPool<char>.Shared.Rent(1024);
-            m_bufferSpan = m_buffer;
-            m_currentOffset = 0;
 
             m_cdataMode = CDataMode.On;
         }
         
-        /// <summary>Resize internal char buffer (<see cref="m_buffer"/>)</summary>
+        /// <summary>Resize internal char buffer</summary>
         private void Resize()
         {
-            var newBuffer = ArrayPool<char>.Shared.Rent(m_buffer.Length * 2); // double size
-            var newBufferSpan = new Span<char>(newBuffer);
-
-            var usedBufferSpan = m_bufferSpan.Slice(0, m_currentOffset);
-            usedBufferSpan.CopyTo(newBufferSpan);
-            
-            ArrayPool<char>.Shared.Return(m_buffer);
-            m_buffer = newBuffer;
-            m_bufferSpan = newBufferSpan;
+            m_writer.GetSpan(m_writer.Capacity*2);
         }
 
         /// <summary>Record of a node that is currently being written into the buffer</summary>
@@ -135,40 +117,37 @@ namespace StackXML
             EncodeText(value, true);
             EndAttrCommon();
         }
+        
+        public void PutAttribute<T>(ReadOnlySpan<char> name, T value) where T : ISpanFormattable
+        {
+            StartAttrCommon(name);
+            Put(value);
+            EndAttrCommon();
+        }
 
         public void PutAttributeInt(ReadOnlySpan<char> name, int value)
         {
-            StartAttrCommon(name);
-            PutInt(value);
-            EndAttrCommon();
+            PutAttribute(name, value);
         }
         
         public void PutAttributeUInt(ReadOnlySpan<char> name, uint value)
         {
-            StartAttrCommon(name);
-            PutUInt(value);
-            EndAttrCommon();
+            PutAttribute(name, value);
         }
         
         public void PutAttributeDouble(ReadOnlySpan<char> name, double value)
         {
-            StartAttrCommon(name);
-            PutDouble(value);
-            EndAttrCommon();
+            PutAttribute(name, value);
         }
         
         public void PutAttributeBoolean(ReadOnlySpan<char> name, bool value)
         {
-            StartAttrCommon(name);
-            PutChar(value ? '1' : '0');
-            EndAttrCommon();
+            PutAttribute(name, value ? '1' : '0');
         }
         
         public void PutAttributeByte(ReadOnlySpan<char> name, byte value)
         {
-            StartAttrCommon(name);
-            PutUInt(value); // todo: hmm
-            EndAttrCommon();
+            PutAttribute(name, value);
         }
 
         /// <summary>Write the starting characters for an attribute (" name=''")</summary>
@@ -187,41 +166,36 @@ namespace StackXML
         {
             PutChar('\'');
         }
-
+        
+        public void Put<T>(T value) where T : ISpanFormattable
+        {
+            int charsWritten;
+            while (!value.TryFormat(m_writer.GetSpan(), out charsWritten, default, CultureInfo.InvariantCulture))
+            {
+                Resize();
+            }
+            m_writer.Advance(charsWritten);
+        }
+ 
         /// <summary>Format a <see cref="Int32"/> into the buffer as text</summary>
         /// <param name="value">The value to write</param>
         public void PutInt(int value)
         {
-            int charsWritten;
-            while (!value.TryFormat(m_writeSpan, out charsWritten, default, CultureInfo.InvariantCulture))
-            {
-                Resize();
-            }
-            m_currentOffset += charsWritten;
+            Put(value);
         }
         
         /// <summary>Format a <see cref="UInt32"/> into the buffer as text</summary>
         /// <param name="value">The value to write</param>
         public void PutUInt(uint value)
         {
-            int charsWritten;
-            while (!value.TryFormat(m_writeSpan, out charsWritten, default, CultureInfo.InvariantCulture))
-            {
-                Resize();
-            }
-            m_currentOffset += charsWritten;
+            Put(value);
         }
         
         /// <summary>Format a <see cref="Double"/> into the buffer as text</summary>
         /// <param name="value">The value to write</param>
         public void PutDouble(double value)
         {
-            int charsWritten;
-            while (!value.TryFormat(m_writeSpan, out charsWritten, default, CultureInfo.InvariantCulture))
-            {
-                Resize();
-            }
-            m_currentOffset += charsWritten;
+            Put(value);
         }
         
         /// <summary>Put a raw <see cref="String"/> into the buffer</summary>
@@ -238,24 +212,20 @@ namespace StackXML
         {
             if (str.Length == 0) return;
             
-            while (!str.TryCopyTo(m_writeSpan))
+            while (!str.TryCopyTo(m_writer.GetSpan()))
             {
                 Resize();
             }
-            m_currentOffset += str.Length;
+            m_writer.Advance(str.Length);
         }
         
         /// <summary>Put a raw <see cref="Char"/> into the buffer</summary>
         /// <param name="c">The character to write</param>
         public void PutChar(char c)
         {
-            if (m_writeSpan.Length == 0)
-            {
-                Resize();
-            }
-            
-            m_writeSpan[0] = c;
-            m_currentOffset++;
+            // todo: use same resize strategy as elsewhere?
+            m_writer.GetSpan(1)[0] = c;
+            m_writer.Advance(1);
         }
 
         /// <summary>Allocate and return serialized XML data as a <see cref="String"/></summary>
@@ -271,18 +241,13 @@ namespace StackXML
         /// <returns>Serialized XML data</returns>
         public ReadOnlySpan<char> ToSpan()
         {
-            var fullSpan = new ReadOnlySpan<char>(m_buffer, 0, m_currentOffset);
-            return fullSpan;
+            return m_writer.WrittenSpan;
         }
 
         /// <summary>Release internal buffer</summary>
         public void Dispose()
         {
-            if (m_buffer != null)
-            {
-                ArrayPool<char>.Shared.Return(m_buffer);
-                m_buffer = null;
-            }
+            m_writer.Dispose();
         }
 
         /// <summary>
