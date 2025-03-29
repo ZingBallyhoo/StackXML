@@ -200,18 +200,18 @@ namespace StackXML.Generator
         
         private void WriteAttrParseMethod(IndentedTextWriter writer, ClassGenInfo classGenInfo)
         {
-            writer.WriteLine("public override bool ParseAttribute(ref XmlReadBuffer buffer, ulong hash, SpanStr value)");
+            writer.WriteLine("public override bool ParseAttribute(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, SpanStr value)");
             writer.WriteLine("{");
             writer.Indent++;
-            writer.WriteLine("if (base.ParseAttribute(ref buffer, hash, value)) return true;");
+            writer.WriteLine("if (base.ParseAttribute(ref buffer, name, value)) return true;");
             
-            writer.WriteLine("switch (hash)");
+            writer.WriteLine("switch (name)");
             writer.WriteLine("{");
             writer.Indent++;
 
             foreach (var field in classGenInfo.m_fields.OrderBy(x => x.m_xmlName.Length))
             {
-                writer.WriteLine($"case {HashName(field.m_xmlName)}: {{");
+                writer.WriteLine($"case \"{field.m_xmlName}\": {{");
                 writer.Indent++;
 
                 if (field.m_splitChar != null)
@@ -367,12 +367,12 @@ namespace StackXML.Generator
         private void WriteParseSubBodyMethod(IndentedTextWriter writer, ClassGenInfo classGenInfo,
             Dictionary<INamedTypeSymbol, ClassGenInfo> map)
         {
-            writer.WriteLine("public override bool ParseSubBody(ref XmlReadBuffer buffer, ulong hash, ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan, ref int end, ref int endInner)");
+            writer.WriteLine("public override bool ParseSubBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan, ref int end, ref int endInner)");
             writer.WriteLine("{");
             writer.Indent++;
-            writer.WriteLine("if (base.ParseSubBody(ref buffer, hash, bodySpan, innerBodySpan, ref end, ref endInner)) return true;");
+            writer.WriteLine("if (base.ParseSubBody(ref buffer, name, bodySpan, innerBodySpan, ref end, ref endInner)) return true;");
             
-            writer.WriteLine("switch (hash)");
+            writer.WriteLine("switch (name)");
             writer.WriteLine("{");
             writer.Indent++;
             
@@ -399,7 +399,7 @@ namespace StackXML.Generator
                 var nameToCheck = field.m_xmlName ??
                                   classToParse?.m_className ?? throw new InvalidDataException("no body name??");
                 
-                writer.WriteLine($"case {HashName(nameToCheck)}: {{");
+                writer.WriteLine($"case \"{nameToCheck}\": {{");
                 writer.Indent++;
 
                 if (classToParse != null)
@@ -502,18 +502,6 @@ namespace StackXML.Generator
             }
             writer.Indent--;
             writer.WriteLine("}");
-        }
-
-        // todo: duplicate code
-        private static ulong HashName(string name)
-        {
-            var hashedValue = 0x2AAAAAAAAAAAAB67ul;
-            for(var i = 0; i < name.Length; i++)
-            {
-                hashedValue += name[i];
-                hashedValue *= 0x2AAAAAAAAAAAAB6Ful;
-            }
-            return hashedValue;
         }
         
         private class SyntaxReceiver : ISyntaxReceiver

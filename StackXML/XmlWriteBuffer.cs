@@ -289,7 +289,7 @@ namespace StackXML
         /// Serialize a baseclass of <see cref="IXmlSerializable"/> to XML text
         /// </summary>
         /// <param name="obj">The object to serialize</param>
-        /// <param name="useCData">Should text be written as CDATA</param>
+        /// <param name="cdataMode">Should text be written as CDATA</param>
         /// <returns>Serialized XML</returns>
         public static string SerializeStatic(IXmlSerializable obj, CDataMode cdataMode=CDataMode.On)
         {
@@ -308,22 +308,22 @@ namespace StackXML
         }
 
         
-        private static readonly char[] s_escapeChars = new char[]
-        {
-            '<', '>', '&',
-        };
+        private static readonly SearchValues<char> s_escapeChars = SearchValues.Create(
+        [
+            '<', '>', '&'
+        ]);
         
-        private static readonly char[] s_escapeCharsAttribute = new char[]
-        {
+        private static readonly SearchValues<char> s_escapeCharsAttribute = SearchValues.Create(
+        [
             '<', '>', '&', '\'', '\"', '\n', '\r', '\t'
-        };
+        ]);
 
         /// <summary>Encode unescaped text into the buffer</summary>
         /// <param name="input">Unescaped text</param>
         /// <param name="attribute">True if text is for an attribute, false for an element</param>
         public void EncodeText(ReadOnlySpan<char> input, bool attribute=false)
         {
-            var escapeChars = new ReadOnlySpan<char>(attribute ? s_escapeCharsAttribute : s_escapeChars);
+            var escapeChars = attribute ? s_escapeCharsAttribute : s_escapeChars;
 
             ReadOnlySpan<char> currentInput = input;
             while (true)

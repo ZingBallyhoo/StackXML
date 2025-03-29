@@ -68,9 +68,8 @@ namespace StackXML
 
                 var attributeValue = attributeValueSpan.Slice(0, quoteEndIdx);
                 var attributeValueDecoded = DecodeText(attributeValue);
-
-                var nameHash = IXmlSerializable.HashName(attributeName);
-                var assigned = obj.ParseAttribute(ref this,nameHash, attributeValueDecoded);
+                
+                var assigned = obj.ParseAttribute(ref this, attributeName, attributeValueDecoded);
                 if (m_abort) return -1;
                 if (!assigned)
                 {
@@ -236,8 +235,7 @@ namespace StackXML
                     var endInnerIdx = unassignedIdx;
                     
                     var innerBodySpan = currSpan.Slice(closeBraceIdx+1);
-                    var nodeNameHash = IXmlSerializable.HashName(nodeName);
-                    var parsedSub = obj.ParseSubBody(ref this, nodeNameHash, 
+                    var parsedSub = obj.ParseSubBody(ref this, nodeName, 
                         currSpan, innerBodySpan, 
                         ref endIdx, ref endInnerIdx);
                     if (m_abort)

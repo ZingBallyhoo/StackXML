@@ -63,21 +63,25 @@ namespace StackXML.Tests
 
     public class AbortClass : AbortClassBase
     {
-        public static ulong c_abortIfPresentHash = HashName("abortIfPresent");
-        public static ulong c_crashIfPresentHash = HashName("crashIfPresent");
-        
-        public override bool ParseSubBody(ref XmlReadBuffer buffer, ulong nameHash, ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan,
+        public override bool ParseSubBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan,
             ref int end, ref int endInner)
         {
-            if (nameHash == c_abortIfPresentHash)
+            switch (name)
             {
-                buffer.m_abort = true;
-                return false;
-            } else if (nameHash == c_crashIfPresentHash)
-            {
-                throw new TestCrashException();
+                case "abortIfPresent":
+                {
+                    buffer.m_abort = true;
+                    return false;
+                }
+                case "crashIfPresent":
+                {
+                    throw new TestCrashException();
+                }
+                default:
+                {
+                    return base.ParseSubBody(ref buffer, name, bodySpan, innerBodySpan, ref end, ref endInner);
+                }
             }
-            return base.ParseSubBody(ref buffer, nameHash, bodySpan, innerBodySpan, ref end, ref endInner);
         }
     }
     

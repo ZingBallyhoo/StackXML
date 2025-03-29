@@ -17,14 +17,14 @@ namespace StackXML
             return false;
         }
         
-        public virtual bool ParseSubBody(ref XmlReadBuffer buffer, ulong hash, 
+        public virtual bool ParseSubBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, 
             ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan, 
             ref int end, ref int endInner)
         {
             return false;
         }
         
-        public virtual bool ParseAttribute(ref XmlReadBuffer buffer, ulong hash, SpanStr value)
+        public virtual bool ParseAttribute(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, SpanStr value)
         {
             return false;
         }
@@ -43,20 +43,6 @@ namespace StackXML
             SerializeAttributes(ref buffer);
             SerializeBody(ref buffer);
             buffer.EndNode(ref node);
-        }
-
-        /// <summary>Calculate fast hash of attribute/node name</summary>
-        /// <param name="name">Name to hash</param>
-        /// <returns>Hashed value</returns>
-        public static ulong HashName(ReadOnlySpan<char> name)
-        {
-            var hashedValue = 0x2AAAAAAAAAAAAB67ul;
-            for(var i = 0; i < name.Length; i++)
-            {
-                hashedValue += name[i];
-                hashedValue *= 0x2AAAAAAAAAAAAB6Ful;
-            }
-            return hashedValue;
         }
     }
 }
