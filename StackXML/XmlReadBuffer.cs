@@ -314,7 +314,7 @@ namespace StackXML
             endEndIdx = c_cdataEnd.Length + endIdx;
 
             var stringData = span.Slice(c_cdataStart.Length, endIdx - c_cdataStart.Length);
-            if (m_params.m_cdataMode == CDataMode.OnEncode)
+            if (m_params.m_cdataMode == CDataMode.OnEncoded)
             {
                 return DecodeText(stringData);
             }

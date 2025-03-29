@@ -216,7 +216,7 @@ namespace StackXML.Generator
 
                 if (field.m_splitChar != null)
                 {
-                    var typeToRead = ((INamedTypeSymbol) field.m_field.Type).TypeArguments[0].Name;
+                    var typeToRead = ((INamedTypeSymbol) field.m_field.Type).TypeArguments[0];
 
                     writer.WriteLine($"var lst = new System.Collections.Generic.List<{typeToRead}>();");
                     writer.WriteLine($"var reader = new StrReader(value, '{field.m_splitChar}', buffer.m_params.m_stringParser);");
@@ -307,12 +307,7 @@ namespace StackXML.Generator
             var readCommand = field.m_field.Type.Name switch
             {
                 "String" => "value.ToString()",
-                "Byte" => "buffer.m_params.m_stringParser.Parse<byte>(value)",
-                "Int32" => "buffer.m_params.m_stringParser.Parse<int>(value)",
-                "UInt32" => "buffer.m_params.m_stringParser.Parse<uint>(value)",
-                "Double" => "buffer.m_params.m_stringParser.Parse<double>(value)",
-                "Boolean" => "buffer.m_params.m_stringParser.Parse<bool>(value)",
-                _ => throw new NotImplementedException($"no attribute reader for {field.m_field.Type.Name}")
+                _ => $"buffer.m_params.m_stringParser.Parse<{field.m_field.Type.ToDisplayString()}>(value)"
             };
             return readCommand;
         }

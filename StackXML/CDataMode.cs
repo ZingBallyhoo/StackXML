@@ -7,6 +7,6 @@ namespace StackXML
         /// <summary>Use encoded text sections</summary>
         Off,
         /// <summary>Use CData sections containing encoded text. Against normal XML spec</summary>
-        OnEncode
+        OnEncoded
     }
 }

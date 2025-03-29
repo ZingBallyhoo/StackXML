@@ -170,7 +170,7 @@ namespace StackXML.Generator
                     writer.WriteLine($"{VARIABLE.m_field.Name}.Deserialize(ref reader);");
                 } else
                 {
-                    var reader = GetReaderForType(typeToRead.Name);
+                    var reader = GetReaderForType(typeToRead);
                     writer.WriteLine($"{VARIABLE.m_field.Name} = {reader};");
                 }
             }
@@ -290,14 +290,14 @@ namespace StackXML.Generator
             return result;
         }
         
-        public static string GetReaderForType(string type)
+        public static string GetReaderForType(ITypeSymbol type)
         {
-            var result = type switch
+            var result = type.Name switch
             {
                 "String" => "reader.GetString().ToString()",
                 "ReadOnlySpan" => "reader.GetString()", // todo: ReadOnlySpan<char> only...
                 "SpanStr" => "reader.GetSpanString()",
-                _ => $"reader.Get<{type}>()"
+                _ => $"reader.Get<{type.ToDisplayString()}>()"
             };
             return result;
         }

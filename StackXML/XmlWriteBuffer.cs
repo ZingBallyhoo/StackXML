@@ -102,7 +102,7 @@ namespace StackXML
             }
 
             PutString(XmlReadBuffer.c_cdataStart);
-            if (m_params.m_cdataMode == CDataMode.OnEncode) EncodeText(text);
+            if (m_params.m_cdataMode == CDataMode.OnEncoded) EncodeText(text);
             else PutString(text); // CDataMode.On
             PutString(XmlReadBuffer.c_cdataEnd);
         }

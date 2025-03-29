@@ -153,7 +153,7 @@ namespace StackXML.Tests
         [Theory]
         [InlineData(CDataMode.Off)]
         [InlineData(CDataMode.On)]
-        [InlineData(CDataMode.OnEncode)]
+        [InlineData(CDataMode.OnEncoded)]
         public static void SerializeStringBodies(CDataMode cdataMode)
         {
             var truth = new StringBodies
@@ -175,7 +175,7 @@ namespace StackXML.Tests
         [Theory]
         [InlineData(CDataMode.Off)]
         [InlineData(CDataMode.On)]
-        [InlineData(CDataMode.OnEncode)]
+        [InlineData(CDataMode.OnEncoded)]
         public static void SerializeStringBody(CDataMode cdataMode)
         {
             var truth = new StringBody()
