@@ -15,8 +15,8 @@ namespace StackXML.Tests
             using var writer = new StrWriter(' ');
             writer.PutString("hello");
             writer.PutString("world");
-            writer.PutDouble(5.6);
-            writer.PutInt(255);
+            writer.Put(5.6);
+            writer.Put(255);
 
             var built = writer.ToString();
             
@@ -29,8 +29,8 @@ namespace StackXML.Tests
             var reader = new StrReader(c_target.AsSpan(), ' ', StandardStrParser.s_instance);
             var hello = reader.GetString();
             var world = reader.GetString();
-            var fivePointSix = BaseStrParser.s_instance.Parse<double>(reader.GetString());
-            var ff = BaseStrParser.s_instance.Parse<int>(reader.GetString());
+            var fivePointSix = reader.Get<double>();
+            var ff = reader.Get<int>();
             
             Assert.Equal("hello", hello.ToString());
             Assert.Equal("world", world.ToString());

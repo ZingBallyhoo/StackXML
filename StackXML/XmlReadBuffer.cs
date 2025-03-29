@@ -23,6 +23,11 @@ namespace StackXML
         public int m_depth;
         
         private static readonly ILog s_logger = LogProvider.GetLogger(nameof(XmlReadBuffer)); 
+        
+        public XmlReadBuffer()
+        {
+            m_params = new XmlReadParams();
+        }
 
         /// <summary>
         /// Parses XML node attributes

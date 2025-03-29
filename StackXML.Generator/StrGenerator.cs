@@ -285,12 +285,7 @@ namespace StackXML.Generator
         {
             var result = type switch
             {
-                "Int32" => $"writer.PutInt({toWrite})",
-                "Double" => $"writer.PutDouble({toWrite})",
-                "String" => $"writer.PutString({toWrite})",
-                "ReadOnlySpan" => $"writer.PutString({toWrite})", // todo: ReadOnlySpan<char> only...
-                "SpanStr" => $"writer.PutString({toWrite})",
-                _ => throw new NotImplementedException($"GetWriterForType: {type}")
+                _ => $"writer.Put({toWrite})"
             };
             return result;
         }
@@ -299,12 +294,10 @@ namespace StackXML.Generator
         {
             var result = type switch
             {
-                "Int32" => "reader.Get<int>()",
-                "Double" => "reader.Get<double>()",
                 "String" => "reader.GetString().ToString()",
                 "ReadOnlySpan" => "reader.GetString()", // todo: ReadOnlySpan<char> only...
                 "SpanStr" => "reader.GetSpanString()",
-                _ => throw new NotImplementedException($"GetReaderForType: {type}")
+                _ => $"reader.Get<{type}>()"
             };
             return result;
         }

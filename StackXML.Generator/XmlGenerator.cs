@@ -264,7 +264,7 @@ namespace StackXML.Generator
                     writer.WriteLine("{");
                     writer.Indent++;
 
-                    writer.WriteLine($"using var writer = new StrWriter('{field.m_splitChar}');");
+                    writer.WriteLine($"using var writer = new StrWriter('{field.m_splitChar}', buffer.m_params.m_stringFormatter);");
                     writer.WriteLine($"foreach (var val in {field.m_field.Name})");
                     writer.WriteLine("{");
                     writer.Indent++;

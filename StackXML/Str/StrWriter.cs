@@ -1,39 +1,39 @@
 using System;
-using System.Buffers;
-using System.Diagnostics;
-using System.Globalization;
+using CommunityToolkit.HighPerformance.Buffers;
 
 namespace StackXML.Str
 {
     public ref struct StrWriter
     {
-        public readonly Span<char> m_buffer;
+        private ArrayPoolBufferWriter<char> m_writer;
+        private readonly IStrFormatter m_formatter;
+        
         public readonly char m_separator;
         public bool m_separatorAtEnd;
 
-        private char[] m_backing;
-        private int m_currIdx;
         private bool m_isFirst;
         
-        public ReadOnlySpan<char> m_builtSpan => m_buffer.Slice(0, m_currIdx);
-        
-        public static int s_maxSize = 256;
+        public ReadOnlySpan<char> m_builtSpan => m_writer.WrittenSpan;
 
-        public StrWriter(char separator)
+        public StrWriter(char separator, IStrFormatter? formatter=null)
         {
-            m_backing = ArrayPool<char>.Shared.Rent(s_maxSize);
-            m_buffer = new Span<char>(m_backing);
-            
-            m_currIdx = 0;
-            m_isFirst = true;
+            m_writer = new ArrayPoolBufferWriter<char>(256);
+            m_formatter = formatter ?? BaseStrFormatter.s_instance;
             
             m_separator = separator;
             m_separatorAtEnd = false;
+            
+            m_isFirst = true;
+        }
+        
+        private void Resize()
+        {
+            m_writer.GetSpan(m_writer.Capacity*2);
         }
 
         private void AssertWriteable()
         {
-            if (m_backing == null) throw new ObjectDisposedException("StrWriter");
+            if (m_writer == null) throw new ObjectDisposedException("StrWriter");
         }
 
         private void PutSeparator()
@@ -48,35 +48,34 @@ namespace StackXML.Str
             PutRaw(str);
         }
         
-        public void PutDouble(double val)
+        public void Put(ReadOnlySpan<char> str)
         {
-            PutSeparator();
-            // ReSharper disable once RedundantAssignment
-            var success = val.TryFormat(m_buffer.Slice(m_currIdx), out var written, default, CultureInfo.InvariantCulture);
-            Debug.Assert(success);
-            m_currIdx += written;
+            PutString(str);
         }
         
-        public void PutInt(int val)
+        public void Put<T>(T value) where T : ISpanFormattable
         {
             PutSeparator();
-            // ReSharper disable once RedundantAssignment
-            var success = val.TryFormat(m_buffer.Slice(m_currIdx), out var written, default, CultureInfo.InvariantCulture);
-            Debug.Assert(success);
-            m_currIdx += written;
+            int charsWritten;
+            while (!m_formatter.TryFormat(m_writer.GetSpan(), value, out charsWritten))
+            {
+                Resize();
+            }
+            m_writer.Advance(charsWritten);
         }
         
         public void PutRaw(char c)
         {
             AssertWriteable();
-            m_buffer[m_currIdx++] = c;
+            m_writer.GetSpan(1)[0] = c;
+            m_writer.Advance(1);
         }
         
         public void PutRaw(ReadOnlySpan<char> str)
         {
             AssertWriteable();
-            str.CopyTo(m_buffer.Slice(m_currIdx));
-            m_currIdx += str.Length;
+            str.CopyTo(m_writer.GetSpan(str.Length));
+            m_writer.Advance(str.Length);
         }
 
         public void Finish(bool terminate)
@@ -106,11 +105,8 @@ namespace StackXML.Str
         
         public void Dispose()
         {
-            if (m_backing != null)
-            {
-                ArrayPool<char>.Shared.Return(m_backing);
-                m_backing = null;
-            }
+            m_writer?.Dispose();
+            m_writer = null;
         }
     }
 }

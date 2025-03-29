@@ -1,5 +1,4 @@
 using System;
-using StackXML.Str;
 
 namespace StackXML
 {

@@ -3,6 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
         <DefineConstants>LIBLOG_EXCLUDE_CODE_COVERAGE</DefineConstants>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>

@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using System.Diagnostics;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using CommunityToolkit.HighPerformance.Buffers;
 
@@ -11,12 +10,10 @@ namespace StackXML
     public ref struct XmlWriteBuffer
     {
         private readonly ArrayPoolBufferWriter<char> m_writer;
+        public XmlWriteParams m_params;
         
         /// <summary>Whether or not a node head is currently open (&gt; hasn't been written)</summary>
         private bool m_pendingNodeHeadClose;
-
-        /// <summary>Type of text blocks to serialize</summary>
-        public CDataMode m_cdataMode;
         
         /// <summary>
         /// Create a new XmlWriteBuffer
@@ -33,9 +30,8 @@ namespace StackXML
         public XmlWriteBuffer()
         {
             m_writer = new ArrayPoolBufferWriter<char>();
+            m_params = new XmlWriteParams();
             m_pendingNodeHeadClose = false;
-
-            m_cdataMode = CDataMode.On;
         }
         
         /// <summary>Resize internal char buffer</summary>
@@ -99,16 +95,16 @@ namespace StackXML
         public void PutCData(ReadOnlySpan<char> text)
         {
             CloseNodeHeadForBodyIfOpen();
-            if (m_cdataMode == CDataMode.Off)
+            if (m_params.m_cdataMode == CDataMode.Off)
             {
                 EncodeText(text);
-            } else
-            {
-                PutString(XmlReadBuffer.c_cdataStart);
-                if (m_cdataMode == CDataMode.OnEncode) EncodeText(text);
-                else PutString(text); // CDataMode.On
-                PutString(XmlReadBuffer.c_cdataEnd);
+                return;
             }
+
+            PutString(XmlReadBuffer.c_cdataStart);
+            if (m_params.m_cdataMode == CDataMode.OnEncode) EncodeText(text);
+            else PutString(text); // CDataMode.On
+            PutString(XmlReadBuffer.c_cdataEnd);
         }
         
         public void PutAttribute(ReadOnlySpan<char> name, ReadOnlySpan<char> value)
@@ -170,32 +166,11 @@ namespace StackXML
         public void Put<T>(T value) where T : ISpanFormattable
         {
             int charsWritten;
-            while (!value.TryFormat(m_writer.GetSpan(), out charsWritten, default, CultureInfo.InvariantCulture))
+            while (!m_params.m_stringFormatter.TryFormat(m_writer.GetSpan(), value, out charsWritten))
             {
                 Resize();
             }
             m_writer.Advance(charsWritten);
-        }
- 
-        /// <summary>Format a <see cref="Int32"/> into the buffer as text</summary>
-        /// <param name="value">The value to write</param>
-        public void PutInt(int value)
-        {
-            Put(value);
-        }
-        
-        /// <summary>Format a <see cref="UInt32"/> into the buffer as text</summary>
-        /// <param name="value">The value to write</param>
-        public void PutUInt(uint value)
-        {
-            Put(value);
-        }
-        
-        /// <summary>Format a <see cref="Double"/> into the buffer as text</summary>
-        /// <param name="value">The value to write</param>
-        public void PutDouble(double value)
-        {
-            Put(value);
         }
         
         /// <summary>Put a raw <see cref="String"/> into the buffer</summary>
@@ -260,7 +235,7 @@ namespace StackXML
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             var writer = Create();
-            writer.m_cdataMode = cdataMode;
+            writer.m_params.m_cdataMode = cdataMode;
             try
             {
                 obj.Serialize(ref writer);

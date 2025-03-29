@@ -12,10 +12,10 @@ namespace StackXML.Str
         private bool m_moved;
         private bool m_moveSuccess;
         
-        public StrReader(ReadOnlySpan<char> str, char separator, IStrParser parser)
+        public StrReader(ReadOnlySpan<char> str, char separator, IStrParser? parser=null)
         {
             m_str = str;
-            m_parser = parser;
+            m_parser = parser ?? BaseStrParser.s_instance;
             m_enumerator = str.Split(separator);
         }
         
