@@ -272,7 +272,7 @@ namespace StackXML
             return span.Length;
         }
         
-        private SpanStr DeserializeElementRawInnerText(ReadOnlySpan<char> span, out int endEndIdx)
+        private ReadOnlySpan<char> DeserializeElementRawInnerText(ReadOnlySpan<char> span, out int endEndIdx)
         {
             endEndIdx = span.IndexOf('<'); // find start of next node
             if (endEndIdx == -1) throw new InvalidDataException("unable to find end of text");
@@ -283,15 +283,15 @@ namespace StackXML
         /// <summary>Decode XML encoded text</summary>
         /// <param name="input"></param>
         /// <returns>Decoded text</returns>
-        private SpanStr DecodeText(ReadOnlySpan<char> input)
+        private ReadOnlySpan<char> DecodeText(ReadOnlySpan<char> input)
         {
             var andIndex = input.IndexOf('&');
             if (andIndex == -1)
             {
                 // no need to decode :)
-                return new SpanStr(input);
+                return input;
             }
-            return new SpanStr(WebUtility.HtmlDecode(input.ToString())); // todo: allocates input as string, gross
+            return WebUtility.HtmlDecode(input.ToString()); // todo: allocates input as string, gross
         }
 
         /// <summary>
@@ -301,7 +301,7 @@ namespace StackXML
         /// <param name="endEndIdx">The index of the end of the text within <see cref="span"/></param>
         /// <returns>Deserialized inner text data</returns>
         /// <exception cref="InvalidDataException">The bounds of the text could not be determined</exception>
-        public SpanStr DeserializeCDATA(ReadOnlySpan<char> span, out int endEndIdx)
+        public ReadOnlySpan<char> DeserializeCDATA(ReadOnlySpan<char> span, out int endEndIdx)
         {
             if (m_cdataMode == CDataMode.Off)
             {
@@ -320,10 +320,8 @@ namespace StackXML
             if (m_cdataMode == CDataMode.OnEncode)
             {
                 return DecodeText(stringData);
-            } else
-            {
-                return new SpanStr(stringData);
             }
+            return stringData;
         }
 
         /// <summary>

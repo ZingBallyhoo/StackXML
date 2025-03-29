@@ -24,7 +24,7 @@ namespace StackXML
             return false;
         }
         
-        public virtual bool ParseAttribute(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, SpanStr value)
+        public virtual bool ParseAttribute(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, ReadOnlySpan<char> value)
         {
             return false;
         }

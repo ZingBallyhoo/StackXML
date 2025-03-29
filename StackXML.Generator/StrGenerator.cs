@@ -288,6 +288,7 @@ namespace StackXML.Generator
                 "Int32" => $"writer.PutInt({toWrite})",
                 "Double" => $"writer.PutDouble({toWrite})",
                 "String" => $"writer.PutString({toWrite})",
+                "ReadOnlySpan" => $"writer.PutString({toWrite})", // todo: ReadOnlySpan<char> only...
                 "SpanStr" => $"writer.PutString({toWrite})",
                 _ => throw new NotImplementedException($"GetWriterForType: {type}")
             };
@@ -301,6 +302,7 @@ namespace StackXML.Generator
                 "Int32" => "reader.GetInt()",
                 "Double" => "reader.GetDouble()",
                 "String" => "reader.GetString().ToString()",
+                "ReadOnlySpan" => "reader.GetString()", // todo: ReadOnlySpan<char> only...
                 "SpanStr" => "reader.GetSpanString()",
                 _ => throw new NotImplementedException($"GetReaderForType: {type}")
             };
