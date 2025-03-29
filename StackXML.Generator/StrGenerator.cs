@@ -299,8 +299,8 @@ namespace StackXML.Generator
         {
             var result = type switch
             {
-                "Int32" => "reader.GetInt()",
-                "Double" => "reader.GetDouble()",
+                "Int32" => "reader.Get<int>()",
+                "Double" => "reader.Get<double>()",
                 "String" => "reader.GetString().ToString()",
                 "ReadOnlySpan" => "reader.GetString()", // todo: ReadOnlySpan<char> only...
                 "SpanStr" => "reader.GetSpanString()",

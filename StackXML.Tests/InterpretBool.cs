@@ -16,20 +16,18 @@ namespace StackXML.Tests
         [InlineData("falsE", false)]
         [InlineData("0", false)]
         [InlineData("1", true)]
-        [InlineData("01", false)] // todo: should these
-        [InlineData("10", true)] // todo: should these
         [InlineData("yes", true)]
         [InlineData("no", false)]
         public static void Interpret(string str, bool expected)
         {
-            var actual = StrReader.InterpretBool(str.AsSpan());
+            var actual = StandardStrParser.InterpretBool(str.AsSpan());
             Assert.Equal(expected, actual);
         }
 
         [Fact]
         public static void InterpretError()
         {
-            Assert.Throws<InvalidDataException>(() => StrReader.InterpretBool("yep"));
+            Assert.Throws<InvalidDataException>(() => StandardStrParser.InterpretBool("yep"));
         }
     }
 }

@@ -219,7 +219,7 @@ namespace StackXML.Generator
                     var typeToRead = ((INamedTypeSymbol) field.m_field.Type).TypeArguments[0].Name;
 
                     writer.WriteLine($"var lst = new System.Collections.Generic.List<{typeToRead}>();");
-                    writer.WriteLine($"var reader = new StrReader(value, '{field.m_splitChar}');");
+                    writer.WriteLine($"var reader = new StrReader(value, '{field.m_splitChar}', buffer.m_params.m_stringParser);");
                     var readerMethod = StrGenerator.GetReaderForType(typeToRead);
 
                     writer.WriteLine("while (reader.HasRemaining())");
@@ -307,11 +307,11 @@ namespace StackXML.Generator
             var readCommand = field.m_field.Type.Name switch
             {
                 "String" => "value.ToString()",
-                "Byte" => "StrReader.ParseByte(value)",
-                "Int32" => "StrReader.ParseInt(value)",
-                "UInt32" => "StrReader.ParseUInt(value)",
-                "Double" => "StrReader.ParseDouble(value)",
-                "Boolean" => "StrReader.InterpretBool(value)",
+                "Byte" => "buffer.m_params.m_stringParser.Parse<byte>(value)",
+                "Int32" => "buffer.m_params.m_stringParser.Parse<int>(value)",
+                "UInt32" => "buffer.m_params.m_stringParser.Parse<uint>(value)",
+                "Double" => "buffer.m_params.m_stringParser.Parse<double>(value)",
+                "Boolean" => "buffer.m_params.m_stringParser.Parse<bool>(value)",
                 _ => throw new NotImplementedException($"no attribute reader for {field.m_field.Type.Name}")
             };
             return readCommand;

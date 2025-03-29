@@ -42,7 +42,7 @@ namespace StackXML.Tests
                 // good
             }
             Assert.True(exceptionThrown);
-            var reader = new StrReader(builtString.AsSpan(), separator);
+            var reader = new StrReader(builtString.AsSpan(), separator, StandardStrParser.s_instance);
 
             var output = new GeneratedClass();
             output.Deserialize(ref reader);

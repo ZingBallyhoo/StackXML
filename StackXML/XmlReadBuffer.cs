@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Net;
 using StackXML.Logging;
-using StackXML.Str;
 
 namespace StackXML
 {
@@ -14,21 +13,14 @@ namespace StackXML
         private const string c_declarationEnd = "?>";
         public const string c_cdataStart = "<![CDATA[";
         public const string c_cdataEnd = "]]>";
+        
+        public XmlReadParams m_params;
 
         /// <summary>Abort parsing immediately</summary>
         public bool m_abort;
-        
-        /// <summary>Type of text blocks to deserialize</summary>
-        public CDataMode m_cdataMode;
 
         /// <summary>Current depth of calls to <see cref="ReadInto"/></summary>
         public int m_depth;
-
-        /// <summary>
-        /// Maximum depth depth that calls to <see cref="ReadInto"/> can happen before an exception will be thrown to
-        /// protect the application
-        /// </summary>
-        public static int s_maxDepth = 50;
         
         private static readonly ILog s_logger = LogProvider.GetLogger(nameof(XmlReadBuffer)); 
 
@@ -91,9 +83,9 @@ namespace StackXML
         private int ReadInto(ReadOnlySpan<char> span, IXmlSerializable obj)
         {
             m_depth++;
-            if (m_depth >= s_maxDepth)
+            if (m_depth >= m_params.m_maxDepth)
             {
-                throw new Exception($"maximum depth {s_maxDepth} reached");
+                throw new Exception($"maximum depth {m_params.m_maxDepth} reached");
             }
             var primary = true;
             for (var i = 0; i < span.Length;)
@@ -303,7 +295,7 @@ namespace StackXML
         /// <exception cref="InvalidDataException">The bounds of the text could not be determined</exception>
         public ReadOnlySpan<char> DeserializeCDATA(ReadOnlySpan<char> span, out int endEndIdx)
         {
-            if (m_cdataMode == CDataMode.Off)
+            if (m_params.m_cdataMode == CDataMode.Off)
             {
                 return DeserializeElementRawInnerText(span, out endEndIdx);
             }
@@ -317,7 +309,7 @@ namespace StackXML
             endEndIdx = c_cdataEnd.Length + endIdx;
 
             var stringData = span.Slice(c_cdataStart.Length, endIdx - c_cdataStart.Length);
-            if (m_cdataMode == CDataMode.OnEncode)
+            if (m_params.m_cdataMode == CDataMode.OnEncode)
             {
                 return DecodeText(stringData);
             }
@@ -353,14 +345,17 @@ namespace StackXML
         /// Parse into a new instance <typeparam name="T"/> without manually creating a XmlReadBuffer
         /// </summary>
         /// <param name="span">Text to parse</param>
-        /// <param name="cdataMode"><see cref="m_cdataMode"/></param>
+        /// <param name="cdataMode"><see cref="CDataMode"/></param>
         /// <typeparam name="T">Type to parse</typeparam>
         /// <returns>The created instance</returns>
         public static T ReadStatic<T>(ReadOnlySpan<char> span, CDataMode cdataMode=CDataMode.On) where T: IXmlSerializable, new()
         {
             var reader = new XmlReadBuffer
             {
-                m_cdataMode = cdataMode
+                m_params = new XmlReadParams
+                {
+                    m_cdataMode = cdataMode
+                }
             };
             return reader.Read<T>(span);
         }

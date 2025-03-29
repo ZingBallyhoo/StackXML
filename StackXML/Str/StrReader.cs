@@ -1,51 +1,39 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 
 namespace StackXML.Str
 {
     public ref struct StrReader
     {
-        private ReadOnlySpan<char> m_str;
-        private SpanSplitEnumerator<char> m_enumerator;
+        private readonly ReadOnlySpan<char> m_str;
+        private readonly IStrParser m_parser;
+        private MemoryExtensions.SpanSplitEnumerator<char> m_enumerator;
         
-        public StrReader(ReadOnlySpan<char> str, char separator) : this(str, new SpanSplitEnumerator<char>(str, separator))
-        {
-        }
-
-        public StrReader(ReadOnlySpan<char> str, SpanSplitEnumerator<char> enumerator)
+        private bool m_moved;
+        private bool m_moveSuccess;
+        
+        public StrReader(ReadOnlySpan<char> str, char separator, IStrParser parser)
         {
             m_str = str;
-            m_enumerator = enumerator;
+            m_parser = parser;
+            m_enumerator = str.Split(separator);
         }
         
         public ReadOnlySpan<char> GetString()
         {
-            if (!m_enumerator.MoveNext()) return default;
-            return m_str[m_enumerator.Current];
+            if (!TryMove()) return default;
+            return m_str[ConsumeRange()];
         }
         
         public SpanStr GetSpanString()
         {
-            if (!m_enumerator.MoveNext()) return default;
-            return new SpanStr(m_str[m_enumerator.Current]);
-        }
-
-        public int GetInt()
-        {
-            var str = GetString();
-            return ParseInt(str);
+            if (!TryMove()) return default;
+            return new SpanStr(m_str[ConsumeRange()]);
         }
         
-        public double GetDouble()
+        public T Get<T>() where T : ISpanParsable<T>
         {
-            // todo: loses some precision??
-            // actionscipt Number is a double
-            // "-13.255656138062477" -> -13.2556561380625
-            
-            var str = GetString();
-            return ParseDouble(str);
+            return m_parser.Parse<T>(GetString());
         }
 
         public IReadOnlyList<string> ReadToEnd()
@@ -58,46 +46,26 @@ namespace StackXML.Str
             }
             return lst;
         }
+        
+        private Range ConsumeRange()
+        {
+            var result = m_enumerator.Current;
+            m_moved = false;
+            return result;
+        }
+        
+        private bool TryMove()
+        {
+            if (m_moved) return m_moveSuccess;
+            
+            m_moveSuccess = m_enumerator.MoveNext();
+            m_moved = true;
+            return m_moveSuccess;
+        }
 
         public bool HasRemaining()
         {
-            return m_enumerator.CanMoveNext();
-        }
-
-        public static bool InterpretBool(ReadOnlySpan<char> val)
-        {
-            if (val[0] == '0') return false;
-            if (val[0] == '1') return true;
-            
-            if (val.StartsWith("no", StringComparison.InvariantCultureIgnoreCase)) return false;
-            if (val.StartsWith("yes", StringComparison.InvariantCultureIgnoreCase)) return true;
-
-            if (val.StartsWith("false", StringComparison.InvariantCultureIgnoreCase)) return false;
-            if (val.StartsWith("true", StringComparison.InvariantCultureIgnoreCase)) return true;
-            
-            throw new InvalidDataException($"unknown boolean \"{val.ToString()}\"");
-        }
-        
-        public static int ParseInt(ReadOnlySpan<char> span)
-        {
-            if (span.Length == 0) return default; // todo: I had to handle this...
-            return int.Parse(span, NumberStyles.Integer, CultureInfo.InvariantCulture);
-        }
-        
-        public static uint ParseUInt(ReadOnlySpan<char> span)
-        {
-            return uint.Parse(span, NumberStyles.Integer, CultureInfo.InvariantCulture);
-        }
-        
-        public static byte ParseByte(ReadOnlySpan<char> span)
-        {
-            if (span.Length == 0) return default; // todo: I had to handle this...
-            return byte.Parse(span, NumberStyles.Integer, CultureInfo.InvariantCulture);
-        }
-        
-        public static double ParseDouble(ReadOnlySpan<char> span)
-        {
-            return double.Parse(span, NumberStyles.Float, CultureInfo.InvariantCulture);
+            return TryMove();
         }
     }
 }

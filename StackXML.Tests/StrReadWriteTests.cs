@@ -26,11 +26,11 @@ namespace StackXML.Tests
         [Fact]
         public static void Read()
         {
-            var reader = new StrReader(c_target.AsSpan(), ' ');
+            var reader = new StrReader(c_target.AsSpan(), ' ', StandardStrParser.s_instance);
             var hello = reader.GetString();
             var world = reader.GetString();
-            var fivePointSix = reader.GetDouble();
-            var ff = reader.GetInt();
+            var fivePointSix = BaseStrParser.s_instance.Parse<double>(reader.GetString());
+            var ff = BaseStrParser.s_instance.Parse<int>(reader.GetString());
             
             Assert.Equal("hello", hello.ToString());
             Assert.Equal("world", world.ToString());
@@ -47,7 +47,7 @@ namespace StackXML.Tests
             };
             
             var input = "1,2,3,4,5";
-            var reader = new StrReader(input.AsSpan(), ',');
+            var reader = new StrReader(input.AsSpan(), ',', StandardStrParser.s_instance);
 
             var readToEnd = reader.ReadToEnd().ToArray();
             

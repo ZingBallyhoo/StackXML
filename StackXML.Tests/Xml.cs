@@ -213,10 +213,12 @@ namespace StackXML.Tests
             var serialized = XmlWriteBuffer.SerializeStatic(head);
         }
         
+        private static int GetDefaultMaxDepth() => new XmlReadParams().m_maxDepth;
+        
         [Fact]
         public static void SlamStackDeserialize()
         {
-            var head = BuildStackSlammer(XmlReadBuffer.s_maxDepth-1);
+            var head = BuildStackSlammer(GetDefaultMaxDepth()-1);
             var serialized = XmlWriteBuffer.SerializeStatic(head);
             var deserialized = XmlReadBuffer.ReadStatic<StackSlam>(serialized);
         }
@@ -224,7 +226,7 @@ namespace StackXML.Tests
         [Fact]
         public static void SlamStackDeserializeError()
         {
-            var head = BuildStackSlammer(XmlReadBuffer.s_maxDepth);
+            var head = BuildStackSlammer(GetDefaultMaxDepth());
             var serialized = XmlWriteBuffer.SerializeStatic(head);
             Assert.Throws<Exception>(() => XmlReadBuffer.ReadStatic<StackSlam>(serialized));
         }
