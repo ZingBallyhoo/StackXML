@@ -10,7 +10,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace StackXML.Generator
 {
     [Generator]
-    [SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1035:Do not use APIs banned for analyzers")]
     public class StrGenerator : IIncrementalGenerator
     {
         private record ClassGenInfo
