@@ -5,7 +5,6 @@ Stack based zero*-allocation XML serializer and deserializer powered by C# 9 sou
 Premature optimisation :)
 
 ## Setup
-- StackXML targets netstandard2.1 which means back to .NET Core 3.0 is supported, but I would recommend .NET 5
 - Add the following to your project to reference the serializer and enable the source generator
 ```xml
 <ItemGroup>
@@ -46,7 +45,7 @@ Premature optimisation :)
 - Data types can only be classes, not structs.
   - All types must inherit from IXmlSerializable (either manually or added by the source generator) which is actually an abstract class and not an interface
   - Using structs would be possible but I don't think its worth the box
-- Types from another assembly can't be used as a field/body. Needs fixing
+- ~~Types from another assembly can't be used as a field/body. Needs fixing~~
 - All elements in the data to parse must be defined in the type in one way or another, otherwise an exception will be thrown.
   - The deserializer relies on complete parsing and has no way of skipping elements
 - Comments within a primitive type body will cause the parser to crash (future consideration...)
@@ -63,19 +62,19 @@ Premature optimisation :)
 Very simple benchmark, loading a single element and getting the string value of its attribute `attribute`
 ``` ini
 
-BenchmarkDotNet=v0.12.1, OS=Windows 10.0.17134.1845 (1803/April2018Update/Redstone4)
+BenchmarkDotNet=v0.13.0, OS=Windows 10.0.19045
 Intel Core i5-6600K CPU 3.50GHz (Skylake), 1 CPU, 4 logical and 4 physical cores
-.NET Core SDK=5.0.100
-  [Host]     : .NET Core 5.0.0 (CoreCLR 5.0.20.51904, CoreFX 5.0.20.51904), X64 RyuJIT
-  DefaultJob : .NET Core 5.0.0 (CoreC CoreCLRLR 5.0.20.51904, CoreFX 5.0.20.51904), X64 RyuJIT
+.NET SDK=9.0.200
+  [Host]     : .NET 9.0.2 (9.0.225.6610), X64 RyuJIT
+  DefaultJob : .NET 9.0.2 (9.0.225.6610), X64 RyuJIT
 ```
-|        Method |         Mean |      Error |     StdDev |  Ratio | RatioSD |  Gen 0 | Gen 1 | Gen 2 | Allocated |
-|-------------- |-------------:|-----------:|-----------:|-------:|--------:|-------:|------:|------:|----------:|
-|    ReadBuffer |     95.81 ns |   0.983 ns |   0.872 ns |   1.00 |    0.00 | 0.0178 |     - |     - |      56 B |
-|    XmlReader  |  1,866.22 ns |  37.250 ns |  79.383 ns |  19.57 |    0.87 | 3.3216 |     - |     - |   10424 B |
-|    XDocument  |  2,286.97 ns |  45.784 ns | 124.560 ns |  24.48 |    1.16 | 3.4313 |     - |     - |   10776 B |
-|   XmlDocument |  2,869.48 ns |  44.058 ns |  39.057 ns |  29.96 |    0.60 | 3.9196 |     - |     - |   12328 B |
-| XmlSerializer | 10,386.07 ns | 152.481 ns | 142.631 ns | 108.44 |    1.49 | 4.7150 |     - |     - |   14882 B |
+|        Method |        Mean |     Error |    StdDev |  Ratio | RatioSD |  Gen 0 | Gen 1 | Gen 2 | Allocated |
+|-------------- |------------:|----------:|----------:|-------:|--------:|-------:|------:|------:|----------:|
+|    ReadBuffer |    60.16 ns |  0.791 ns |  0.740 ns |   1.00 |    0.00 | 0.0178 |     - |     - |      56 B |
+|    XmlReader_ |   823.91 ns |  6.864 ns |  6.421 ns |  13.70 |    0.23 | 3.2892 |     - |     - |  10,336 B |
+|    XDocument_ | 1,047.87 ns | 17.032 ns | 15.931 ns |  17.42 |    0.27 | 3.4218 |     - |     - |  10,760 B |
+|   XmlDocument | 1,435.48 ns | 15.425 ns | 14.428 ns |  23.87 |    0.43 | 3.9063 |     - |     - |  12,248 B |
+| XmlSerializer | 6,398.11 ns | 88.037 ns | 82.350 ns | 106.37 |    2.14 | 4.5471 |     - |     - |  14,305 B |
 
 ## Example data classes
 ### Simple Attribute
