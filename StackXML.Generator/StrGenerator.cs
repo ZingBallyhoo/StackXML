@@ -1,9 +1,11 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ComputeSharp.SourceGeneration.Extensions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -11,6 +13,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace StackXML.Generator
 {
     [Generator]
+    [SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1035:Do not use APIs banned for analyzers")]
     public class StrGenerator : ISourceGenerator
     {
         public void Initialize(GeneratorInitializationContext context)
@@ -170,7 +173,7 @@ namespace StackXML.Generator
                     writer.WriteLine($"{VARIABLE.m_field.Name}.Deserialize(ref reader);");
                 } else
                 {
-                    var reader = GetReaderForType(typeToRead);
+                    var reader = GetReaderForType(typeToRead.Name, typeToRead.GetFullyQualifiedMetadataName());
                     writer.WriteLine($"{VARIABLE.m_field.Name} = {reader};");
                 }
             }
@@ -290,14 +293,14 @@ namespace StackXML.Generator
             return result;
         }
         
-        public static string GetReaderForType(ITypeSymbol type)
+        public static string GetReaderForType(string shortName, string qualifiedName)
         {
-            var result = type.Name switch
+            var result = shortName switch
             {
                 "String" => "reader.GetString().ToString()",
                 "ReadOnlySpan" => "reader.GetString()", // todo: ReadOnlySpan<char> only...
                 "SpanStr" => "reader.GetSpanString()",
-                _ => $"reader.Get<{type.ToDisplayString()}>()"
+                _ => $"reader.Get<{qualifiedName}>()"
             };
             return result;
         }

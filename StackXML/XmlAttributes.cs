@@ -17,9 +17,9 @@ namespace StackXML
     [AttributeUsage(AttributeTargets.Field)]
     public class XmlBody : Attribute
     {
-        public readonly string m_name;
+        public readonly string? m_name;
         
-        public XmlBody(string name=null)
+        public XmlBody(string? name=null)
         {
             m_name = name;
         }
