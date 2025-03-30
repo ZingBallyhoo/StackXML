@@ -52,7 +52,7 @@ namespace StackXML.Generator
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             var typeDeclarations = context.SyntaxProvider.ForAttributeWithMetadataName(
-                "StackXML.XmlCls",
+                "StackXML.XmlClsAttribute",
                 (syntaxNode, _) => syntaxNode is ClassDeclarationSyntax { AttributeLists.Count: > 0 }, TransformClass);
             
             context.RegisterSourceOutput(typeDeclarations, Process);
@@ -80,8 +80,8 @@ namespace StackXML.Generator
                     continue;
                 }
 
-                var isField = member.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlField", out var xmlFieldAttribute);
-                var isBody = member.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlBody", out var xmlBodyAttribute);
+                var isField = member.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlFieldAttribute", out var xmlFieldAttribute);
+                var isBody = member.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlBodyAttribute", out var xmlBodyAttribute);
                 if (!isField && !isBody)
                 {
                     continue;
@@ -104,7 +104,7 @@ namespace StackXML.Generator
                     // body
 
                     xmlName = xmlBodyAttribute!.ConstructorArguments[0].Value?.ToString();
-                    if (xmlName == null && elementType.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlCls", out var innerClsAttribute))
+                    if (xmlName == null && elementType.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlClsAttribute", out var innerClsAttribute))
                     {
                         // todo: does this break incremental?
                         xmlName = innerClsAttribute.ConstructorArguments[0].Value?.ToString();
@@ -126,7 +126,7 @@ namespace StackXML.Generator
                     m_isList = isList
                 };
 
-                if (member.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlSplitStr", out var xmlSplitStrAttribute))
+                if (member.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlSplitStrAttribute", out var xmlSplitStrAttribute))
                 {
                     memberInfo.m_splitChar = (char)xmlSplitStrAttribute.ConstructorArguments[0].Value!;
                 }

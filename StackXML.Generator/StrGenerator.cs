@@ -55,7 +55,7 @@ namespace StackXML.Generator
                         continue;
                     }
 
-                    if (!childFieldSymbol.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.Str.StrField", out _))
+                    if (!childFieldSymbol.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.Str.StrFieldAttribute", out _))
                     {
                         continue;
                     }
@@ -69,7 +69,7 @@ namespace StackXML.Generator
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             var fieldDeclarations = context.SyntaxProvider.ForAttributeWithMetadataName(
-                "StackXML.Str.StrField",
+                "StackXML.Str.StrFieldAttribute",
                 (syntaxNode, _) => syntaxNode is VariableDeclaratorSyntax { Parent: VariableDeclarationSyntax { Parent: FieldDeclarationSyntax { Parent: TypeDeclarationSyntax, AttributeLists.Count: > 0 } } },
                 TransformField);
             

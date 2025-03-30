@@ -4,44 +4,44 @@ namespace StackXML
 {
     
     [AttributeUsage(AttributeTargets.Field)]
-    public class XmlField : Attribute
+    public class XmlFieldAttribute : Attribute
     {
         public readonly string m_name;
         
-        public XmlField(string name)
+        public XmlFieldAttribute(string name)
         {
             m_name = name;
         }
     }
     
     [AttributeUsage(AttributeTargets.Field)]
-    public class XmlBody : Attribute
+    public class XmlBodyAttribute : Attribute
     {
         public readonly string? m_name;
         
-        public XmlBody(string? name=null)
+        public XmlBodyAttribute(string? name=null)
         {
             m_name = name;
         }
     }
     
     [AttributeUsage(AttributeTargets.Class)]
-    public class XmlCls : Attribute
+    public class XmlClsAttribute : Attribute
     {
         public readonly string m_name;
         
-        public XmlCls(string name)
+        public XmlClsAttribute(string name)
         {
             m_name = name;
         }
     }
 
     [AttributeUsage(AttributeTargets.Field)]
-    public class XmlSplitStr : Attribute
+    public class XmlSplitStrAttribute : Attribute
     {
         public readonly char m_splitOn;
         
-        public XmlSplitStr(char splitOn=',')
+        public XmlSplitStrAttribute(char splitOn=',')
         {
             m_splitOn = splitOn;
         }

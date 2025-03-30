@@ -3,7 +3,7 @@ using System;
 namespace StackXML.Str
 {
     [AttributeUsage(AttributeTargets.Field)]
-    public class StrField : Attribute
+    public class StrFieldAttribute : Attribute
     {
     }
     
