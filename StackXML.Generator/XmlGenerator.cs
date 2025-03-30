@@ -293,15 +293,9 @@ namespace StackXML.Generator
 
         private static string GetPutAttributeAction(FieldGenInfo field)
         {
-            var writerAction = field.m_shortTypeName switch
+            var writerAction = field.m_elementTypeShortName switch
             {
-                "String" => $"buffer.PutAttribute(\"{field.m_xmlName}\", {field.m_fieldName});",
-                "Byte" => $"buffer.PutAttributeByte(\"{field.m_xmlName}\", {field.m_fieldName});",
-                "Int32" => $"buffer.PutAttributeInt(\"{field.m_xmlName}\", {field.m_fieldName});",
-                "UInt32" => $"buffer.PutAttributeUInt(\"{field.m_xmlName}\", {field.m_fieldName});",
-                "Double" => $"buffer.PutAttributeDouble(\"{field.m_xmlName}\", {field.m_fieldName});",
-                "Boolean" => $"buffer.PutAttributeBoolean(\"{field.m_xmlName}\", {field.m_fieldName});",
-                _ => throw new Exception($"no attribute writer for type {field.m_qualifiedTypeName}")
+                _ => $"buffer.PutAttribute(\"{field.m_xmlName}\", {field.m_fieldName});"
             };
             return writerAction;
         }

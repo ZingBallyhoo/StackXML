@@ -121,29 +121,10 @@ namespace StackXML
             EndAttrCommon();
         }
 
-        public void PutAttributeInt(ReadOnlySpan<char> name, int value)
+        public void PutAttribute(ReadOnlySpan<char> name, bool value)
         {
-            PutAttribute(name, value);
-        }
-        
-        public void PutAttributeUInt(ReadOnlySpan<char> name, uint value)
-        {
-            PutAttribute(name, value);
-        }
-        
-        public void PutAttributeDouble(ReadOnlySpan<char> name, double value)
-        {
-            PutAttribute(name, value);
-        }
-        
-        public void PutAttributeBoolean(ReadOnlySpan<char> name, bool value)
-        {
+            // todo: why is bool not ISpanFormattable?
             PutAttribute(name, value ? '1' : '0');
-        }
-        
-        public void PutAttributeByte(ReadOnlySpan<char> name, byte value)
-        {
-            PutAttribute(name, value);
         }
 
         /// <summary>Write the starting characters for an attribute (" name=''")</summary>
