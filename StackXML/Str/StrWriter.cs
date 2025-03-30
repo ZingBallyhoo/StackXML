@@ -106,7 +106,7 @@ namespace StackXML.Str
         public void Dispose()
         {
             m_writer?.Dispose();
-            m_writer = null;
+            m_writer = null!;
         }
     }
 }

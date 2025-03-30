@@ -1,203 +1,179 @@
-using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Text;
+using System.Threading;
 using ComputeSharp.SourceGeneration.Extensions;
+using ComputeSharp.SourceGeneration.Helpers;
+using ComputeSharp.SourceGeneration.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Text;
 
 namespace StackXML.Generator
 {
     [Generator]
     [SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1035:Do not use APIs banned for analyzers")]
-    public class StrGenerator : ISourceGenerator
+    public class StrGenerator : IIncrementalGenerator
     {
-        public void Initialize(GeneratorInitializationContext context)
+        private record ClassGenInfo
         {
-            context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
+            public required HierarchyInfo m_hierarchy;
+            public EquatableArray<FieldGenInfo> m_fields;
         }
 
-        private class ClassGenInfo
+        private record FieldGenInfo
         {
-            public readonly INamedTypeSymbol m_symbol;
-            public readonly List<FieldGenInfo> m_fields = new List<FieldGenInfo>();
-
-            public ClassGenInfo(INamedTypeSymbol symbol)
-            {
-                m_symbol = symbol;
-            }
-        }
-
-        private class FieldGenInfo
-        {
-            public readonly IFieldSymbol m_field;
+            public readonly HierarchyInfo m_ownerHierarchy;
             public readonly int? m_group;
-            public readonly string m_defaultValue;
-
-            public FieldGenInfo(IFieldSymbol fieldSymbol, int? group,
-                VariableDeclaratorSyntax variableDeclaratorSyntax)
-            {
-                m_field = fieldSymbol;
-                m_group = group;
-                m_defaultValue = variableDeclaratorSyntax?.Initializer?.Value.ToString();
-            }
-        }
-
-        public void Execute(GeneratorExecutionContext context)
-        {
-            try
-            {
-                ExecuteInternal(context);
-            } catch (Exception e)
-            {
-                var descriptor = new DiagnosticDescriptor(nameof(StrGenerator), "Error", e.ToString(), "Error", DiagnosticSeverity.Error, true);
-                var diagnostic = Diagnostic.Create(descriptor, Location.None);
-                context.ReportDiagnostic(diagnostic);
-            }
-        }
-
-        public void ExecuteInternal(GeneratorExecutionContext context)
-        {
-            if (!(context.SyntaxReceiver is SyntaxReceiver receiver))
-                return;
+            public readonly string? m_defaultValue;
             
-            var compilation = context.Compilation;
-            
-            var attributeSymbol = compilation.GetTypeByMetadataName("StackXML.Str.StrField");
-            var groupAttributeSymbol = compilation.GetTypeByMetadataName("StackXML.Str.StrOptionalAttribute");
+            public readonly string m_fieldName;
+            public readonly string m_typeShortName;
+            public readonly string m_typeQualifiedName;
+            public readonly bool m_isNullable;
+            public readonly bool m_isStrBody;
 
-            Dictionary<INamedTypeSymbol, ClassGenInfo> classes = new Dictionary<INamedTypeSymbol, ClassGenInfo>(SymbolEqualityComparer.Default);
-            
-            foreach (var field in receiver.m_candidateFields)
+            public FieldGenInfo(IFieldSymbol fieldSymbol, VariableDeclaratorSyntax variableDeclaratorSyntax)
             {
-                var model = compilation.GetSemanticModel(field.SyntaxTree);
-                foreach (var variable in field.Declaration.Variables)
+                m_ownerHierarchy = HierarchyInfo.From(fieldSymbol.ContainingType);
+                m_defaultValue = variableDeclaratorSyntax.Initializer?.Value.ToString();
+                
+                m_fieldName = fieldSymbol.Name;
+                
+                var type = (INamedTypeSymbol)fieldSymbol.Type;
+                m_isNullable = ExtractNullable(ref type);
+                
+                m_typeShortName = type.Name;
+                m_typeQualifiedName = type.GetFullyQualifiedName();
+                
+                if (fieldSymbol.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.Str.StrOptionalAttribute", out var optionalAttribute))
                 {
-                    var fieldSymbol = ModelExtensions.GetDeclaredSymbol(model, variable) as IFieldSymbol;
-                    if (fieldSymbol == null) continue;
-
-                    var fieldAttr = fieldSymbol.GetAttributes().SingleOrDefault(ad => ad.AttributeClass.Equals(attributeSymbol, SymbolEqualityComparer.Default));
-                    var groupAttr = fieldSymbol.GetAttributes().SingleOrDefault(ad => ad.AttributeClass.Equals(groupAttributeSymbol, SymbolEqualityComparer.Default));
-
-                    if (fieldAttr == null) continue;
-                    if (!classes.TryGetValue(fieldSymbol.ContainingType, out var classInfo))
-                    {
-                        classInfo = new ClassGenInfo(fieldSymbol.ContainingType);
-                        classes[fieldSymbol.ContainingType] = classInfo;
-                    }
-
-                    int? group = null;
-                    if (groupAttr != null)
-                    {
-                        @group = (int)groupAttr.ConstructorArguments[0].Value;
-                    }
-                    classInfo.m_fields.Add(new FieldGenInfo(fieldSymbol, @group, variable));
+                    m_group = (int)optionalAttribute.ConstructorArguments[0].Value!;
                 }
-            }
 
-            foreach (KeyValuePair<INamedTypeSymbol,ClassGenInfo> info in classes)
-            {
-                var classSource = ProcessClass(info.Value.m_symbol, info.Value, classes);
-                context.AddSource($"{nameof(StrGenerator)}_{info.Value.m_symbol.Name}.cs", SourceText.From(classSource, Encoding.UTF8));
+                foreach (var member in type.GetMembers())
+                {
+                    if (member is not IFieldSymbol childFieldSymbol)
+                    {
+                        continue;
+                    }
+
+                    if (!childFieldSymbol.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.Str.StrField", out _))
+                    {
+                        continue;
+                    }
+                    
+                    m_isStrBody = true;
+                    break;
+                }
             }
         }
         
-        private string ProcessClass(INamedTypeSymbol classSymbol, ClassGenInfo classGenInfo, Dictionary<INamedTypeSymbol, ClassGenInfo> classes)
+        public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-            var writer = new IndentedTextWriter(new StringWriter(), "    ");
-            writer.WriteLine("using StackXML;");
-            writer.WriteLine("using StackXML.Str;");
-            writer.WriteLine();
+            var fieldDeclarations = context.SyntaxProvider.ForAttributeWithMetadataName(
+                "StackXML.Str.StrField",
+                (syntaxNode, _) => syntaxNode is VariableDeclaratorSyntax { Parent: VariableDeclarationSyntax { Parent: FieldDeclarationSyntax { Parent: TypeDeclarationSyntax, AttributeLists.Count: > 0 } } },
+                TransformField);
             
-            var scope = new NestedScope(classSymbol);
-            scope.Start(writer);
-            writer.WriteLine(NestedScope.GetClsString(classSymbol));
-            writer.WriteLine("{");
-            writer.Indent++;
+            // group by containing type
+            var typeDeclarations = fieldDeclarations.GroupBy(static x => x.m_ownerHierarchy, static x => x).Select((x, token) => new ClassGenInfo
+            {
+                m_hierarchy = x.Key,
+                m_fields = x.Right
+            });
             
-            WriteDeserializeMethod(writer, classGenInfo, classes);
-            WriteSerializeMethod(writer, classGenInfo, classes);
-
-            writer.Indent--;
-            writer.WriteLine("}");
-            scope.End(writer);
-            
-            return writer.InnerWriter.ToString();
+            context.RegisterSourceOutput(typeDeclarations, Process);
         }
 
-        private void WriteDeserializeMethod(IndentedTextWriter writer, ClassGenInfo classGenInfo, Dictionary<INamedTypeSymbol, ClassGenInfo> classes)
+        private static FieldGenInfo TransformField(GeneratorAttributeSyntaxContext context, CancellationToken token)
         {
-            writer.WriteLine($"public void Deserialize(ref StrReader reader)");
+            return new FieldGenInfo((IFieldSymbol)context.TargetSymbol, (VariableDeclaratorSyntax)context.TargetNode);
+        }
+        
+        private static void Process(SourceProductionContext productionContext, ClassGenInfo classGenInfo)
+        {
+            using var w = new IndentedTextWriter();
+            
+            w.WriteLine("using StackXML;");
+            w.WriteLine("using StackXML.Str;");
+            w.WriteLine();
+            
+            classGenInfo.m_hierarchy.WriteSyntax(classGenInfo, w, ["IStrClass"], [ProcessClass]);
+            productionContext.AddSource($"{classGenInfo.m_hierarchy.FullyQualifiedMetadataName}.cs", w.ToString());
+        }
+        
+        private static void ProcessClass(ClassGenInfo classGenInfo, IndentedTextWriter writer)
+        {
+            WriteDeserializeMethod(classGenInfo, writer);
+            writer.WriteLine();
+            WriteSerializeMethod(classGenInfo, writer);
+        }
+
+        private static void WriteDeserializeMethod(ClassGenInfo classGenInfo, IndentedTextWriter writer)
+        {
+            writer.WriteLine("public void Deserialize(ref StrReader reader)");
             writer.WriteLine("{");
-            writer.Indent++;
+            writer.IncreaseIndent();
             
             HashSet<int> groupsStarted = new HashSet<int>();
             int? currentGroup = null;
-            foreach (var VARIABLE in classGenInfo.m_fields)
+            foreach (var field in classGenInfo.m_fields)
             {
-                if (currentGroup != VARIABLE.m_group)
+                if (currentGroup != field.m_group)
                 {
                     if (currentGroup != null)
                     {
-                        writer.Indent--;
+                        writer.DecreaseIndent();
                         writer.WriteLine("}");
                     }
 
-                    if (VARIABLE.m_group != null)
+                    if (field.m_group != null)
                     {
                         const string c_conditionName = "read";
 
-                        if (groupsStarted.Add(VARIABLE.m_group.Value))
+                        if (groupsStarted.Add(field.m_group.Value))
                         {
-                            writer.WriteLine($"var {c_conditionName}{VARIABLE.m_group.Value} = reader.HasRemaining();");
+                            writer.WriteLine($"var {c_conditionName}{field.m_group.Value} = reader.HasRemaining();");
                         }
 
-                        writer.WriteLine($"if ({c_conditionName}{VARIABLE.m_group.Value})");
+                        writer.WriteLine($"if ({c_conditionName}{field.m_group.Value})");
                         writer.WriteLine("{");
-                        writer.Indent++;
+                        writer.IncreaseIndent();
                     }
 
-                    currentGroup = VARIABLE.m_group;
+                    currentGroup = field.m_group;
                 }
-
-                var typeToRead = (INamedTypeSymbol)VARIABLE.m_field.Type;
-                ExtractNullable(ref typeToRead); // don't need to do anything special to assign to nullable if it is
-                if (classes.ContainsKey(typeToRead))
+                
+                if (field.m_isStrBody)
                 {
-                    // todo: doesn't support other compilations
-                    writer.WriteLine($"{VARIABLE.m_field.Name} = new {typeToRead.Name}();");
-                    writer.WriteLine($"{VARIABLE.m_field.Name}.Deserialize(ref reader);");
+                    writer.WriteLine($"{field.m_fieldName} = new {field.m_typeQualifiedName}();");
+                    writer.WriteLine($"{field.m_fieldName}.Deserialize(ref reader);");
                 } else
                 {
-                    var reader = GetReaderForType(typeToRead.Name, typeToRead.GetFullyQualifiedMetadataName());
-                    writer.WriteLine($"{VARIABLE.m_field.Name} = {reader};");
+                    var reader = GetReaderForType(field.m_typeShortName, field.m_typeQualifiedName);
+                    writer.WriteLine($"{field.m_fieldName} = {reader};");
                 }
             }
 
             if (currentGroup != null)
             {
-                writer.Indent--;
+                writer.DecreaseIndent();
                 writer.WriteLine("}");
             }
 
-            writer.Indent--;
+            writer.DecreaseIndent();
             writer.WriteLine("}");
         }
 
-        private void WriteSerializeMethod(IndentedTextWriter writer, ClassGenInfo classGenInfo, Dictionary<INamedTypeSymbol, ClassGenInfo> classes)
+        private static void WriteSerializeMethod(ClassGenInfo classGenInfo, IndentedTextWriter writer)
         {
-            writer.WriteLine($"public void Serialize(ref StrWriter writer)");
+            writer.WriteLine("public void Serialize(ref StrWriter writer)");
             writer.WriteLine("{");
-            writer.Indent++;
+            writer.IncreaseIndent();
             {
                 HashSet<int> allGroups = new HashSet<int>();
-                foreach (var VARIABLE in classGenInfo.m_fields)
+                foreach (var field in classGenInfo.m_fields)
                 {
-                    if (VARIABLE.m_group != null) allGroups.Add(VARIABLE.m_group.Value);
+                    if (field.m_group != null) allGroups.Add(field.m_group.Value);
                 }
 
                 const string c_conditionName = "doGroup";
@@ -217,10 +193,10 @@ namespace StackXML.Generator
 
                         if (field.m_defaultValue != null)
                         {
-                            boolOrs.Add($"{field.m_field.Name} != {field.m_defaultValue}");
+                            boolOrs.Add($"{field.m_fieldName} != {field.m_defaultValue}");
                         } else
                         {
-                            boolOrs.Add($"{field.m_field.Name} != default");
+                            boolOrs.Add($"{field.m_fieldName} != default");
                         }
                         groupConditions.Add($"bool {c_conditionName}{field.m_group} = {string.Join(" || ", boolOrs)};");
                     }
@@ -233,47 +209,45 @@ namespace StackXML.Generator
                 }
                 
                 int? currentGroup = null;
-                foreach (var VARIABLE in classGenInfo.m_fields)
+                foreach (var field in classGenInfo.m_fields)
                 {
-                    if (currentGroup != VARIABLE.m_group)
+                    if (currentGroup != field.m_group)
                     {
                         if (currentGroup != null)
                         {
-                            writer.Indent--;
+                            writer.DecreaseIndent();
                             writer.WriteLine("}");
                         }
-                        if (VARIABLE.m_group != null)
+                        if (field.m_group != null)
                         {
-                            writer.WriteLine($"if ({c_conditionName}{VARIABLE.m_group.Value})");
+                            writer.WriteLine($"if ({c_conditionName}{field.m_group.Value})");
                             writer.WriteLine("{");
-                            writer.Indent++;
+                            writer.IncreaseIndent();
                         }
-                        currentGroup = VARIABLE.m_group;
+                        currentGroup = field.m_group;
                     }
                     
-                    var typeToWrite = (INamedTypeSymbol)VARIABLE.m_field.Type;
-                    var toWrite = VARIABLE.m_field.Name;
-                    if (ExtractNullable(ref typeToWrite))
+                    var toWrite = field.m_fieldName;
+                    if (field.m_isNullable)
                     {
                         toWrite += ".Value";
                     }
-                    if (classes.ContainsKey(typeToWrite))
+                    if (field.m_isStrBody)
                     {
-                        // todo: doesn't support other compilations
                         writer.WriteLine($"{toWrite}.Serialize(ref writer);");
                     } else
                     {
-                        var writerFunc = GetWriterForType(typeToWrite.Name, toWrite);
+                        var writerFunc = GetWriterForType(field.m_fieldName, toWrite);
                         writer.WriteLine($"{writerFunc};");
                     }
                 }
                 if (currentGroup != null)
                 {
-                    writer.Indent--;
+                    writer.DecreaseIndent();
                     writer.WriteLine("}");
                 }
             }
-            writer.Indent--;
+            writer.DecreaseIndent();
             writer.WriteLine("}");
         }
 
@@ -303,19 +277,6 @@ namespace StackXML.Generator
                 _ => $"reader.Get<{qualifiedName}>()"
             };
             return result;
-        }
-        
-        private class SyntaxReceiver : ISyntaxReceiver
-        {
-            public List<FieldDeclarationSyntax> m_candidateFields { get; } = new List<FieldDeclarationSyntax>();
-            
-            public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
-            {
-                if (syntaxNode is FieldDeclarationSyntax fieldDeclarationSyntax && fieldDeclarationSyntax.AttributeLists.Count > 0)
-                {
-                    m_candidateFields.Add(fieldDeclarationSyntax);
-                }
-            }
         }
     }
 }
