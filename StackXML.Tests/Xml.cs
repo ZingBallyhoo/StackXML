@@ -25,14 +25,14 @@ namespace StackXML.Tests
     }
 
     [XmlCls("attrs")]
-    public partial class WithAttributes
+    public ref partial struct WithAttributes
     {
         [XmlField("int")] public int m_int;
         [XmlField("uint")] public uint m_uint;
         [XmlField("double")] public double m_double;
         [XmlField("bool")] public bool m_bool;
         [XmlField("byte")] public byte m_byte;
-        [XmlField("string")] public string m_string;
+        [XmlField("string")] public ReadOnlySpan<char> m_string;
     }
     
     [XmlCls("stringbodies")]
@@ -91,7 +91,7 @@ namespace StackXML.Tests
         [Fact]
         public static void SerializeNull()
         {
-            Assert.Throws<ArgumentNullException>(() => XmlWriteBuffer.SerializeStatic(null));
+            Assert.Throws<ArgumentNullException>(() => XmlWriteBuffer.SerializeStatic<IXmlSerializable>(null));
         }
         
         [Fact]
@@ -147,7 +147,7 @@ namespace StackXML.Tests
             Assert.Equal(truth.m_int, deserialized.m_int);
             Assert.Equal(truth.m_uint, deserialized.m_uint);
             Assert.Equal(truth.m_double, deserialized.m_double);
-            Assert.Equal(truth.m_string, deserialized.m_string);
+            Assert.Equal(truth.m_string.ToString(), deserialized.m_string.ToString());
         }
         
         [Theory]

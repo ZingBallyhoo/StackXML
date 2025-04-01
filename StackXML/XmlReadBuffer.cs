@@ -38,7 +38,7 @@ namespace StackXML
         /// <param name="obj">Object to receive parsed data</param>
         /// <exception cref="InvalidDataException">Unable to parse data</exception>
         /// <returns>Position within <param name="currSpan"/> which is at the end of the attribute list</returns>
-        private int DeserializeAttributes(ReadOnlySpan<char> currSpan, int closeBraceIdx, int position, IXmlSerializable obj)
+        private int DeserializeAttributes<T>(ReadOnlySpan<char> currSpan, int closeBraceIdx, int position, ref T obj) where T: IXmlSerializable, allows ref struct
         {
             while (position < closeBraceIdx)
             {
@@ -71,7 +71,7 @@ namespace StackXML
                 if (!assigned)
                 {
                     s_logger.Warn("[XmlReadBuffer]: unhandled attribute {AttributeName} on {ClassName}. \"{Value}\"",
-                        attributeName.ToString(), obj.GetType().ToString(), attributeValue.ToString());
+                        attributeName.ToString(), obj.GetNodeName().ToString(), attributeValue.ToString());
                 }
                         
                 position += attributeName.Length + attributeValue.Length + 2 + 1; // ='' -- 3 chars
@@ -85,7 +85,7 @@ namespace StackXML
         /// <returns>Position within <param name="span"/> that the node ends at</returns>
         /// <exception cref="InvalidDataException">Unable to parse data</exception>
         /// <exception cref="Exception">Internal error</exception>
-        private int ReadInto(ReadOnlySpan<char> span, IXmlSerializable obj)
+        private int ReadInto<T>(ReadOnlySpan<char> span, ref T obj) where T: IXmlSerializable, allows ref struct
         {
             m_depth++;
             if (m_depth >= m_params.m_maxDepth)
@@ -164,7 +164,7 @@ namespace StackXML
                     if (spaceIdx != -1)
                     {
                         afterAttrs = spaceIdx+1; // skip space
-                        afterAttrs = DeserializeAttributes(currSpan, closeBraceIdx, afterAttrs, obj);
+                        afterAttrs = DeserializeAttributes(currSpan, closeBraceIdx, afterAttrs, ref obj);
                         if (m_abort)
                         {
                             m_depth--;
@@ -257,7 +257,7 @@ namespace StackXML
                         }
                     } else
                     {
-                        throw new InvalidDataException($"Unknown sub body {nodeName.ToString()} on {obj.GetType()}");
+                        throw new InvalidDataException($"Unknown sub body {nodeName.ToString()} on {obj.GetNodeName().ToString()}");
                     }
                 }
                 
@@ -328,10 +328,10 @@ namespace StackXML
         /// <param name="end">Index into <param name="span"/> that is at the end of the node</param>
         /// <typeparam name="T">Type to parse</typeparam>
         /// <returns>The created instance</returns>
-        public T Read<T>(ReadOnlySpan<char> span, out int end) where T: IXmlSerializable, new()
+        public T Read<T>(ReadOnlySpan<char> span, out int end) where T: IXmlSerializable, new(), allows ref struct
         {
             var t = new T();
-            end = ReadInto(span, t);
+            end = ReadInto(span, ref t);
             return t;
         }
         
@@ -341,7 +341,7 @@ namespace StackXML
         /// <param name="span">Text to parse</param>
         /// <typeparam name="T">Type to parse</typeparam>
         /// <returns>The created instance</returns>
-        public T Read<T>(ReadOnlySpan<char> span) where T: IXmlSerializable, new()
+        public T Read<T>(ReadOnlySpan<char> span) where T: IXmlSerializable, new(), allows ref struct
         {
             return Read<T>(span, out _);
         }
@@ -353,7 +353,7 @@ namespace StackXML
         /// <param name="cdataMode"><see cref="CDataMode"/></param>
         /// <typeparam name="T">Type to parse</typeparam>
         /// <returns>The created instance</returns>
-        public static T ReadStatic<T>(ReadOnlySpan<char> span, CDataMode cdataMode=CDataMode.On) where T: IXmlSerializable, new()
+        public static T ReadStatic<T>(ReadOnlySpan<char> span, CDataMode cdataMode=CDataMode.On) where T: IXmlSerializable, new(), allows ref struct
         {
             var reader = new XmlReadBuffer
             {

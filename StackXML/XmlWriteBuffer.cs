@@ -183,6 +183,14 @@ namespace StackXML
             m_writer.GetSpan(1)[0] = c;
             m_writer.Advance(1);
         }
+        
+        public void PutObject<T>(in T value) where T : IXmlSerializable, allows ref struct
+        {
+            var node = StartNodeHead(value.GetNodeName());
+            value.SerializeAttributes(ref this);
+            value.SerializeBody(ref this);
+            EndNode(ref node);
+        }
 
         /// <summary>Allocate and return serialized XML data as a <see cref="String"/></summary>
         /// <returns>String of serialized XML</returns>
@@ -212,14 +220,14 @@ namespace StackXML
         /// <param name="obj">The object to serialize</param>
         /// <param name="cdataMode">Should text be written as CDATA</param>
         /// <returns>Serialized XML</returns>
-        public static string SerializeStatic(IXmlSerializable obj, CDataMode cdataMode=CDataMode.On)
+        public static string SerializeStatic<T>(in T obj, CDataMode cdataMode=CDataMode.On) where T : IXmlSerializable, allows ref struct
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             var writer = Create();
             writer.m_params.m_cdataMode = cdataMode;
             try
             {
-                obj.Serialize(ref writer);
+                writer.PutObject(obj);
                 var str = writer.ToStr();
                 return str;
             } finally

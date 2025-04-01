@@ -20,11 +20,21 @@ namespace StackXML.Generator
             public required string m_shortName;
             public required HierarchyInfo m_hierarchy;
             public required bool m_hasBaseType;
+            public required bool m_isValueType;
 
             public required string? m_className;
             
             public EquatableArray<FieldGenInfo> m_fields;
             public EquatableArray<FieldGenInfo> m_bodies;
+            
+            public string m_overrideSpecifier
+            {
+                get
+                {
+                    if (m_isValueType) return "";
+                    return m_hasBaseType ? " override" : " virtual";
+                }
+            }
         }
 
         private record FieldGenInfo
@@ -35,6 +45,7 @@ namespace StackXML.Generator
             public required string m_shortTypeName;
             public required string m_qualifiedTypeName;
             
+            public required bool m_isPrimitive;
             public required bool m_isValueType;
             public required bool m_isList;
             
@@ -46,14 +57,14 @@ namespace StackXML.Generator
             
             public bool IsList() => m_isList;
             public bool IsString() => m_shortTypeName == "String";
-            public bool IsPrimitive() => m_isValueType || IsString();
+            public bool IsPrimitive() => m_isPrimitive;
         }
         
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             var typeDeclarations = context.SyntaxProvider.ForAttributeWithMetadataName(
                 "StackXML.XmlClsAttribute",
-                (syntaxNode, _) => syntaxNode is ClassDeclarationSyntax { AttributeLists.Count: > 0 }, TransformClass);
+                (syntaxNode, _) => syntaxNode is TypeDeclarationSyntax { AttributeLists.Count: > 0 }, TransformClass);
             
             context.RegisterSourceOutput(typeDeclarations, Process);
         }
@@ -64,10 +75,13 @@ namespace StackXML.Generator
 
             var classInfo = new ClassGenInfo
             {
-                m_shortName =  typeSymbol.Name,
+                m_shortName = typeSymbol.Name,
                 m_hierarchy = HierarchyInfo.From(typeSymbol), 
                 m_className = syntaxContext.Attributes[0].ConstructorArguments[0].Value?.ToString(),
-                m_hasBaseType = typeSymbol.BaseType!.GetFullyQualifiedMetadataName() != "System.Object"
+                m_hasBaseType = typeSymbol.BaseType != null &&
+                                typeSymbol.BaseType.GetFullyQualifiedMetadataName() != "System.Object" &&
+                                typeSymbol.BaseType.GetFullyQualifiedMetadataName() != "System.ValueType",
+                m_isValueType = typeSymbol.IsValueType
             };
 
             var bodies = new List<FieldGenInfo>();
@@ -93,6 +107,11 @@ namespace StackXML.Generator
                 {
                     elementType = ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0];
                 }
+                
+                var interfaceSymbol = syntaxContext.SemanticModel.Compilation.GetTypeByMetadataName("StackXML.IXmlSerializable")!;;
+                var isClassBody = 
+                    elementType.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlClsAttribute", out var innerClsAttribute) ||
+                    elementType.HasInterfaceWithType(interfaceSymbol);
 
                 string? xmlName;
                 if (isField)
@@ -104,7 +123,7 @@ namespace StackXML.Generator
                     // body
 
                     xmlName = xmlBodyAttribute!.ConstructorArguments[0].Value?.ToString();
-                    if (xmlName == null && elementType.TryGetAttributeWithFullyQualifiedMetadataName("StackXML.XmlClsAttribute", out var innerClsAttribute))
+                    if (xmlName == null && innerClsAttribute != null)
                     {
                         // todo: does this break incremental?
                         xmlName = innerClsAttribute.ConstructorArguments[0].Value?.ToString();
@@ -122,6 +141,7 @@ namespace StackXML.Generator
                     m_elementTypeShortName = elementType.Name,
                     m_elementTypeQualifiedName = elementType.GetFullyQualifiedName(),
                     
+                    m_isPrimitive = !isClassBody,
                     m_isValueType = elementType.IsValueType,
                     m_isList = isList
                 };
@@ -168,14 +188,8 @@ namespace StackXML.Generator
             {
                 callbacks.Add(Process_GetClassName);
             }
-            if (classGenInfo.m_fields.Length > 0)
-            {
-                callbacks.Add(Process_Fields);
-            }
-            if (classGenInfo.m_bodies.Length > 0)
-            {
-                callbacks.Add(Process_Bodies);
-            }
+            callbacks.Add(Process_Fields);
+            callbacks.Add(Process_Bodies);
 
             classGenInfo.m_hierarchy.WriteSyntax(classGenInfo, w, baseTypes, callbacks.ToArray());
             productionContext.AddSource($"{classGenInfo.m_hierarchy.FullyQualifiedMetadataName}.cs", w.ToString());
@@ -183,7 +197,7 @@ namespace StackXML.Generator
         
         private static void Process_GetClassName(ClassGenInfo classGenInfo, IndentedTextWriter writer)
         {
-            writer.WriteLine("public override ReadOnlySpan<char> GetNodeName()");
+            writer.WriteLine($"public{classGenInfo.m_overrideSpecifier} ReadOnlySpan<char> GetNodeName()");
             writer.WriteLine("{");
             writer.IncreaseIndent();
             writer.WriteLine($"return \"{classGenInfo.m_className}\";");
@@ -208,10 +222,13 @@ namespace StackXML.Generator
         
         private static void WriteAttrParseMethod(ClassGenInfo classGenInfo, IndentedTextWriter writer)
         {
-            writer.WriteLine("public override bool ParseAttribute(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, ReadOnlySpan<char> value)");
+            writer.WriteLine($"public{classGenInfo.m_overrideSpecifier} bool ParseAttribute(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, ReadOnlySpan<char> value)");
             writer.WriteLine("{");
             writer.IncreaseIndent();
-            writer.WriteLine("if (base.ParseAttribute(ref buffer, name, value)) return true;");
+            if (classGenInfo.m_hasBaseType)
+            {
+                writer.WriteLine("if (base.ParseAttribute(ref buffer, name, value)) return true;");
+            }
             
             writer.WriteLine("switch (name)");
             writer.WriteLine("{");
@@ -257,10 +274,13 @@ namespace StackXML.Generator
 
         private static void WriteAttSerializeMethod(ClassGenInfo classGenInfo, IndentedTextWriter writer)
         {
-            writer.WriteLine("public override void SerializeAttributes(ref XmlWriteBuffer buffer)");
+            writer.WriteLine($"public{classGenInfo.m_overrideSpecifier} void SerializeAttributes(ref XmlWriteBuffer buffer)");
             writer.WriteLine("{");
             writer.IncreaseIndent();
-            writer.WriteLine("base.SerializeAttributes(ref buffer);");
+            if (classGenInfo.m_hasBaseType)
+            {
+                writer.WriteLine("base.SerializeAttributes(ref buffer);");
+            }
             foreach (var field in classGenInfo.m_fields)
             {
                 if (field.m_splitChar != null)
@@ -305,6 +325,7 @@ namespace StackXML.Generator
             var readCommand = field.m_shortTypeName switch
             {
                 "String" => "value.ToString()",
+                "ReadOnlySpan" => "value", // todo: ReadOnlySpan<char> only...
                 _ => $"buffer.m_params.m_stringParser.Parse<{field.m_qualifiedTypeName}>(value)"
             };
             return readCommand;
@@ -331,7 +352,7 @@ namespace StackXML.Generator
 
             if (needsInlineBody)
             {
-                writer.WriteLine("public override bool ParseFullBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> bodySpan, ref int end)");
+                writer.WriteLine($"public{classGenInfo.m_overrideSpecifier} bool ParseFullBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> bodySpan, ref int end)");
                 writer.WriteLine("{");
                 writer.IncreaseIndent();
                 foreach (var body in classGenInfo.m_bodies)
@@ -353,14 +374,52 @@ namespace StackXML.Generator
                 writer.WriteLine();
                 WriteParseSubBodyMethod(classGenInfo, writer);
             }
+            
+            if (!needsInlineBody)
+            {
+                writer.WriteLine($"public{classGenInfo.m_overrideSpecifier} bool ParseFullBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> bodySpan, ref int end)");
+                writer.WriteLine("{");
+                writer.IncreaseIndent();
+                if (classGenInfo.m_hasBaseType)
+                {
+                    // doesn't really make sense but lets be safe...
+                    writer.WriteLine("return base.ParseFullBody(ref buffer, bodySpan, ref end);");
+                } else
+                {
+                    writer.WriteLine("return false;");
+                }
+                writer.DecreaseIndent();
+                writer.WriteLine("}");
+                
+            }
+            
+            if (!needsSubBody)
+            {
+                writer.WriteLine($"public{classGenInfo.m_overrideSpecifier} bool ParseSubBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan, ref int end, ref int endInner)");
+                writer.WriteLine("{");
+                writer.IncreaseIndent();
+                if (classGenInfo.m_hasBaseType)
+                {
+                    // doesn't really make sense but lets be safe...
+                    writer.WriteLine("return base.ParseSubBody(ref buffer, name, bodySpan, innerBodySpan, ref end, ref endInner);");
+                } else
+                {
+                    writer.WriteLine("return false;");
+                }
+                writer.DecreaseIndent();
+                writer.WriteLine("}");
+            }
         }
 
         private static void WriteParseSubBodyMethod(ClassGenInfo classGenInfo, IndentedTextWriter writer)
         {
-            writer.WriteLine("public override bool ParseSubBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan, ref int end, ref int endInner)");
+            writer.WriteLine($"public{classGenInfo.m_overrideSpecifier} bool ParseSubBody(ref XmlReadBuffer buffer, ReadOnlySpan<char> name, ReadOnlySpan<char> bodySpan, ReadOnlySpan<char> innerBodySpan, ref int end, ref int endInner)");
             writer.WriteLine("{");
             writer.IncreaseIndent();
-            writer.WriteLine("if (base.ParseSubBody(ref buffer, name, bodySpan, innerBodySpan, ref end, ref endInner)) return true;");
+            if (classGenInfo.m_hasBaseType)
+            {
+                writer.WriteLine("if (base.ParseSubBody(ref buffer, name, bodySpan, innerBodySpan, ref end, ref endInner)) return true;");
+            }
             
             writer.WriteLine("switch (name)");
             writer.WriteLine("{");
@@ -381,7 +440,7 @@ namespace StackXML.Generator
                     writer.WriteLine($"{field.m_fieldName}.Add(buffer.Read<{field.m_elementTypeQualifiedName}>(bodySpan, out end));");
                 } else
                 {
-                    writer.WriteLine($"if ({field.m_fieldName} != null) throw new InvalidDataException(\"duplicate non-list body {nameToCheck}\");");
+                    if (!field.m_isValueType) writer.WriteLine($"if ({field.m_fieldName} != null) throw new InvalidDataException(\"duplicate non-list body {nameToCheck}\");");
                     writer.WriteLine($"{field.m_fieldName} = buffer.Read<{field.m_elementTypeQualifiedName}>(bodySpan, out end);");
                 }
                 
@@ -414,10 +473,13 @@ namespace StackXML.Generator
 
         private static void WriteSerializeBodyMethod(ClassGenInfo classGenInfo, IndentedTextWriter writer)
         {
-            writer.WriteLine("public override void SerializeBody(ref XmlWriteBuffer buffer)");
+            writer.WriteLine($"public{classGenInfo.m_overrideSpecifier} void SerializeBody(ref XmlWriteBuffer buffer)");
             writer.WriteLine("{");
             writer.IncreaseIndent();
-            writer.WriteLine("base.SerializeBody(ref buffer);");
+            if (classGenInfo.m_hasBaseType)
+            {
+                writer.WriteLine("base.SerializeBody(ref buffer);");
+            }
 
             foreach (var field in classGenInfo.m_bodies)
             {
@@ -432,12 +494,12 @@ namespace StackXML.Generator
                     writer.WriteLine($"foreach (var obj in {field.m_fieldName})");
                     writer.WriteLine("{");
                     writer.IncreaseIndent();
-                    writer.WriteLine("obj.Serialize(ref buffer);");
+                    writer.WriteLine("buffer.PutObject(obj);");
                     writer.DecreaseIndent();
                     writer.WriteLine("}");
                 } else if (!field.IsPrimitive()) // another IXmlSerializable
                 {
-                    writer.WriteLine($"{field.m_fieldName}.Serialize(ref buffer);");
+                    writer.WriteLine($"buffer.PutObject({field.m_fieldName});");
                 } else
                 {
                     if (field.m_xmlName != null)
