@@ -57,6 +57,7 @@ namespace StackXML.Generator
             
             public bool IsList() => m_isList;
             public bool IsString() => m_shortTypeName == "String";
+            public bool IsSpan() => m_shortTypeName == "ReadOnlySpan";
             public bool IsPrimitive() => m_isPrimitive;
         }
         
@@ -360,6 +361,9 @@ namespace StackXML.Generator
                     if (body.IsString())
                     {
                         writer.WriteLine($"{body.m_fieldName} = buffer.DeserializeCDATA(bodySpan, out end).ToString();");
+                    } else if (body.IsSpan())
+                    {
+                        writer.WriteLine($"{body.m_fieldName} = buffer.DeserializeCDATA(bodySpan, out end);");
                     } else
                     {
                         throw new NotImplementedException($"Xml:WriteParseBodyMethods: how to inline body {body.m_qualifiedTypeName}");
@@ -435,13 +439,22 @@ namespace StackXML.Generator
                 if (field.IsString())
                 {
                     writer.WriteLine($"{field.m_fieldName} = buffer.DeserializeCDATA(innerBodySpan, out endInner).ToString();");
+                } else if (field.IsSpan())
+                {
+                    writer.WriteLine($"{field.m_fieldName} = buffer.DeserializeCDATA(innerBodySpan, out endInner);");
                 } else if (field.IsList())
                 {
                     writer.WriteLine($"{field.m_fieldName}.Add(buffer.Read<{field.m_elementTypeQualifiedName}>(bodySpan, out end));");
                 } else
                 {
-                    if (!field.m_isValueType) writer.WriteLine($"if ({field.m_fieldName} != null) throw new InvalidDataException(\"duplicate non-list body {nameToCheck}\");");
-                    writer.WriteLine($"{field.m_fieldName} = buffer.Read<{field.m_elementTypeQualifiedName}>(bodySpan, out end);");
+                    if (!field.m_isValueType)
+                    {
+                        writer.WriteLine($"if ({field.m_fieldName} != null) throw new InvalidDataException(\"duplicate non-list body {nameToCheck}\");");
+                        writer.WriteLine($"{field.m_fieldName} = buffer.Read<{field.m_elementTypeQualifiedName}>(bodySpan, out end);");
+                    } else
+                    {
+                        writer.WriteLine($"buffer.ReadInto<{field.m_elementTypeQualifiedName}>(bodySpan, ref {field.m_fieldName}, out end);");
+                    }
                 }
                 
                 writer.WriteLine("return true;");
@@ -509,7 +522,7 @@ namespace StackXML.Generator
                         writer.WriteLine($"var node = buffer.StartNodeHead(\"{field.m_xmlName}\");");
                     }
                     
-                    if (field.IsString())
+                    if (field.IsString() || field.IsSpan())
                     {
                         writer.WriteLine($"buffer.PutCData({field.m_fieldName});");
                     } else

@@ -335,6 +335,11 @@ namespace StackXML
             return t;
         }
         
+        public void ReadInto<T>(ReadOnlySpan<char> span, ref T obj, out int end) where T: IXmlSerializable, allows ref struct
+        {
+            end = ReadInto(span, ref obj);
+        }
+        
         /// <summary>
         /// The same as <see cref="Read{T}(System.ReadOnlySpan{char},out int)"/> but without the `end` out parameter
         /// </summary>
@@ -346,6 +351,15 @@ namespace StackXML
             return Read<T>(span, out _);
         }
         
+        public static T ReadStatic<T>(ReadOnlySpan<char> span, XmlReadParams? para=null) where T: IXmlSerializable, new(), allows ref struct
+        {
+            var reader = new XmlReadBuffer
+            {
+                m_params = para ?? new XmlReadParams()
+            };
+            return reader.Read<T>(span);
+        }
+        
         /// <summary>
         /// Parse into a new instance <typeparam name="T"/> without manually creating a XmlReadBuffer
         /// </summary>
@@ -355,14 +369,19 @@ namespace StackXML
         /// <returns>The created instance</returns>
         public static T ReadStatic<T>(ReadOnlySpan<char> span, CDataMode cdataMode=CDataMode.On) where T: IXmlSerializable, new(), allows ref struct
         {
+            return ReadStatic<T>(span, new XmlReadParams
+            {
+                m_cdataMode = cdataMode
+            });
+        }
+        
+        public static void ReadIntoStatic<T>(ReadOnlySpan<char> span, ref T obj, XmlReadParams? para=null) where T: IXmlSerializable, allows ref struct
+        {
             var reader = new XmlReadBuffer
             {
-                m_params = new XmlReadParams
-                {
-                    m_cdataMode = cdataMode
-                }
+                m_params = para ?? new XmlReadParams()
             };
-            return reader.Read<T>(span);
+            reader.ReadInto(span, ref obj);
         }
     }
 }
