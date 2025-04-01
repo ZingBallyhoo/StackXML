@@ -28,9 +28,9 @@ namespace StackXML
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
     public class XmlClsAttribute : Attribute
     {
-        public readonly string m_name;
+        public readonly string? m_name;
         
-        public XmlClsAttribute(string name)
+        public XmlClsAttribute(string? name)
         {
             m_name = name;
         }

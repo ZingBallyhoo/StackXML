@@ -367,7 +367,7 @@ namespace StackXML
         /// <param name="cdataMode"><see cref="CDataMode"/></param>
         /// <typeparam name="T">Type to parse</typeparam>
         /// <returns>The created instance</returns>
-        public static T ReadStatic<T>(ReadOnlySpan<char> span, CDataMode cdataMode=CDataMode.On) where T: IXmlSerializable, new(), allows ref struct
+        public static T ReadStatic<T>(ReadOnlySpan<char> span, CDataMode cdataMode) where T: IXmlSerializable, new(), allows ref struct
         {
             return ReadStatic<T>(span, new XmlReadParams
             {
