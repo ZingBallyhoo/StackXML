@@ -47,7 +47,13 @@ namespace StackXML.Tests
     [XmlCls("stringbody")]
     public partial class StringBody
     {
-        [XmlBody()] public string m_fullBody;
+        [XmlBody] public string m_fullBody;
+    }
+    
+    [XmlCls("stringbodyarray")]
+    public partial class FullBodyArray
+    {
+        [XmlBody] public List<StringBody> m_bodies;
     }
 
     public class TestCrashException : Exception
@@ -186,6 +192,36 @@ namespace StackXML.Tests
             
             var deserialized = XmlReadBuffer.ReadStatic<StringBody>(result, cdataMode);
             Assert.Equal(truth.m_fullBody, deserialized.m_fullBody);
+        }
+        
+        [Theory]
+        [InlineData(CDataMode.Off)]
+        [InlineData(CDataMode.On)]
+        [InlineData(CDataMode.OnEncoded)]
+        public static void SerializeStringBodyArray(CDataMode cdataMode)
+        {
+            var truthArray = new FullBodyArray
+            {
+                m_bodies = 
+                [
+                    // doesn't matter what the inner type is
+                    // i'm just reusing
+                    new StringBody() 
+                    {
+                        m_fullBody = "first" 
+                    },
+                    new StringBody
+                    {
+                        m_fullBody = "second"
+                    }
+                ]
+            };
+            
+            var result = XmlWriteBuffer.SerializeStatic(truthArray, cdataMode);
+            
+            var deserialized = XmlReadBuffer.ReadStatic<FullBodyArray>(result, cdataMode);
+            Assert.Equal(truthArray.m_bodies[0].m_fullBody, deserialized.m_bodies[0].m_fullBody);
+            Assert.Equal(truthArray.m_bodies[1].m_fullBody, deserialized.m_bodies[1].m_fullBody);
         }
 
         [Fact]
