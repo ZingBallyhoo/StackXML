@@ -9,7 +9,7 @@ namespace StackXML.Str
         
         public override T Parse<T>(ReadOnlySpan<char> span)
         {
-            if (span.Length == 0) return default; // todo: I had to handle this...
+            if (span.Length == 0 && typeof(T).IsPrimitive) return default; // todo: I had to handle this...
             
             if (typeof(T) == typeof(bool))
             {
