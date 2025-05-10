@@ -31,5 +31,23 @@ namespace StackXML.Str
                 writer.Dispose();
             }
         }
+        
+        public static void FullyDeserialize<T>(this T obj, ref StrReader reader) where T : class, IStrClass
+        {
+            obj.Deserialize(ref reader);
+            if (reader.HasRemaining())
+            {
+                throw new Exception("DeserializeFinal: had trailing data");
+            }
+        }
+        
+        public static void FullyDeserialize<T>(ref this T obj, ref StrReader reader) where T : struct, IStrClass, allows ref struct
+        {
+            obj.Deserialize(ref reader);
+            if (reader.HasRemaining())
+            {
+                throw new Exception("DeserializeFinal: had trailing data");
+            }
+        }
     }
 }
