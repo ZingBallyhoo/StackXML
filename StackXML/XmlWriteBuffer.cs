@@ -74,6 +74,11 @@ namespace StackXML
             return new NodeRecord(name);
         }
         
+        public void EndNodeHead()
+        {
+            CloseNodeHeadForBodyIfOpen();
+        }
+        
         /// <summary>End an XML node</summary>
         /// <param name="record">Record describing the open node</param>
         public void EndNode(ref NodeRecord record)

@@ -55,7 +55,15 @@ namespace StackXML.Tests
     {
         [XmlBody] public List<StringBody> m_bodies;
     }
-
+    
+    [XmlCls("primitivebodies")]
+    public partial class PrimitiveBodies
+    {
+        [XmlBody("int")] public int m_int;
+        [XmlBody("float")] public int m_float;
+        [XmlBody("decimal")] public Decimal m_decimal;
+    }
+    
     public class TestCrashException : Exception
     {
     }
@@ -222,6 +230,24 @@ namespace StackXML.Tests
             var deserialized = XmlReadBuffer.ReadStatic<FullBodyArray>(result, cdataMode);
             Assert.Equal(truthArray.m_bodies[0].m_fullBody, deserialized.m_bodies[0].m_fullBody);
             Assert.Equal(truthArray.m_bodies[1].m_fullBody, deserialized.m_bodies[1].m_fullBody);
+        }
+        
+        [Fact]
+        public static void SerializePrimitiveBodies()
+        {
+            var truthArray = new PrimitiveBodies()
+            {
+                m_int = 888,
+                m_float = 999,
+                m_decimal = 1111
+            };
+            
+            var result = XmlWriteBuffer.SerializeStatic(truthArray, CDataMode.Off);
+            var deserialized = XmlReadBuffer.ReadStatic<PrimitiveBodies>(result, CDataMode.Off);
+            
+            Assert.Equal(truthArray.m_int, deserialized.m_int);
+            Assert.Equal(truthArray.m_float, deserialized.m_float);
+            Assert.Equal(truthArray.m_decimal, deserialized.m_decimal);
         }
 
         [Fact]

@@ -321,15 +321,20 @@ namespace StackXML.Generator
             return writerAction;
         }
         
-        private static string GetParseAttributeAction(FieldGenInfo field)
+        private static string GetParsePrimitiveAction(string localName, FieldGenInfo field)
         {
             var readCommand = field.m_shortTypeName switch
             {
-                "String" => "value.ToString()",
-                "ReadOnlySpan" => "value", // todo: ReadOnlySpan<char> only...
-                _ => $"buffer.m_params.m_stringParser.Parse<{field.m_qualifiedTypeName}>(value)"
+                "String" => $"{localName}.ToString()",
+                "ReadOnlySpan" => $"{localName}", // todo: ReadOnlySpan<char> only...
+                _ => $"buffer.m_params.m_stringParser.Parse<{field.m_qualifiedTypeName}>({localName})"
             };
             return readCommand;
+        }
+        
+        private static string GetParseAttributeAction(FieldGenInfo field)
+        {
+            return GetParsePrimitiveAction("value", field);
         }
         
         private static void WriteParseBodyMethods(ClassGenInfo classGenInfo, IndentedTextWriter writer)
@@ -445,6 +450,15 @@ namespace StackXML.Generator
                 } else if (field.IsList())
                 {
                     writer.WriteLine($"{field.m_fieldName}.Add(buffer.Read<{field.m_elementTypeQualifiedName}>(bodySpan, out end));");
+                } else if (field.IsPrimitive())
+                {
+                    // todo: manually looking for < means invalid data can influence deserialization
+                    // <node>0<hehehehe</node> deserializes to 0
+                    
+                    writer.WriteLine("var primEnd = innerBodySpan.IndexOf('<');");
+                    writer.WriteLine("var primBody = innerBodySpan.Slice(0, primEnd);");
+                    writer.WriteLine($"this.{field.m_fieldName} = {GetParsePrimitiveAction("primBody", field)};");
+                    writer.WriteLine("endInner = primBody.Length;");
                 } else
                 {
                     if (!field.m_isValueType)
@@ -527,7 +541,8 @@ namespace StackXML.Generator
                         writer.WriteLine($"buffer.PutCData({field.m_fieldName});");
                     } else
                     {
-                        throw new Exception($"how to put sub body {field.m_qualifiedTypeName}");
+                        if (field.m_xmlName != null) writer.WriteLine("buffer.EndNodeHead();");
+                        writer.WriteLine($"buffer.Put({field.m_fieldName});");
                     }
                     
                     if (field.m_xmlName != null)
