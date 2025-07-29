@@ -5,13 +5,19 @@ Stack based zero*-allocation XML serializer and deserializer powered by C# 9 sou
 Premature optimisation :)
 
 ## Setup
-- Add the following to your project to reference the serializer and enable the source generator
+- From Nuget
+  - https://www.nuget.org/packages/StackXML
+
+- As a submodule
+  - Add the following to your project to reference the serializer and enable the source generator
 ```xml
 <ItemGroup>
-    <ProjectReference Include="..\StackXML\StackXML.csproj" />
-    <ProjectReference Include="..\StackXML.Generator\StackXML.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\StackXML\StackXML\StackXML.csproj" />
+    <ProjectReference Include="..\StackXML\StackXML.Generator\StackXML.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 </ItemGroup>
-``` 
+```
+
+## Usage
 - The common entrypoint for deserializing is `XmlReadBuffer.ReadStatic(ReadOnlySpan<char>)`
 - The common entrypoint for serializing is `XmlWriteBuffer.SerializeStatic(IXmlSerializable)`
   - This method returns a string, to avoid this allocation you will need create your own instance of XmlWriteBuffer and ensure it is disposed safely like `SerializeStatic` does. The `ToSpan` method returns the char span containing the serialized text
@@ -36,15 +42,16 @@ Premature optimisation :)
 - Agnostic logging through [LibLog](https://github.com/damianh/LibLog)
 
 ## Quirks
-- Invalid data between elements is ignored
+- Invalid data inside or between elements is ignored
+  - `<int>0<this still deserializes as zero with no errors</int>`
   - `<test>anything here is completely missed<testInner/><test/>`
 - Spaces between attributes is not required by the deserializer
   - e.g `<test one='aa'two='bb'>` 
 - XmlSerializer must be disposed otherwise the pooled buffer will be leaked.
   - XmlSerializer.SerializeStatic gives of an example of how this should be done in a safe way
-- Data types can only be classes, not structs.
-  - All types must inherit from IXmlSerializable (either manually or added by the source generator) which is actually an abstract class and not an interface
-  - Using structs would be possible but I don't think its worth the box
+- ~~Data types can only be classes, not structs.~~
+  - ~~All types must inherit from IXmlSerializable (either manually or added by the source generator) which is actually an abstract class and not an interface~~
+  - ~~Using structs would be possible but I don't think its worth the box~~
 - ~~Types from another assembly can't be used as a field/body. Needs fixing~~
 - All elements in the data to parse must be defined in the type in one way or another, otherwise an exception will be thrown.
   - The deserializer relies on complete parsing and has no way of skipping elements

@@ -4,14 +4,39 @@
         <TargetFramework>net9.0</TargetFramework>
         <DefineConstants>LIBLOG_EXCLUDE_CODE_COVERAGE</DefineConstants>
         <Nullable>enable</Nullable>
+        <IsPackable>true</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
+      <PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.25">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
       <PackageReference Include="LibLog" Version="5.0.8">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
     </ItemGroup>
 
+    <PropertyGroup Label="Nuget">
+        <Title>StackXML</Title>
+        <Description>Stack based zero-allocation XML serializer and deserializer powered by C# 9 source generators</Description>
+        <Version>1.0.0</Version>
+
+        <Authors>ZingBallyhoo</Authors>
+        <Copyright>© 2020-2025 zingballyhoo</Copyright>
+
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags>csharp-sourcegenerator xml</PackageTags>
+
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <RepositoryUrl>https://github.com/ZingBallyhoo/StackXML</RepositoryUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../README.md" Pack="true" PackagePath="/" Visible="false" />
+        <None Include="../StackXML.Generator/bin/$(Configuration)/netstandard2.0/StackXML.Generator.dll" Pack="true" PackagePath="analyzers/roslyn4.11/dotnet/cs" Visible="false" />
+    </ItemGroup>
 </Project>
