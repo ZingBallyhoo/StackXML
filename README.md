@@ -5,10 +5,9 @@ Stack based zero*-allocation XML serializer and deserializer powered by C# 9 sou
 Premature optimisation :)
 
 ## Setup
-- From Nuget
+- From Nuget:
   - https://www.nuget.org/packages/StackXML
-
-- As a submodule
+- As a submodule:
   - Add the following to your project to reference the serializer and enable the source generator
 ```xml
 <ItemGroup>
@@ -139,7 +138,7 @@ public partial class ListItem
 [XmlCls("container")]
 public partial class ListContainer
 {
-    [XmlBody()]
+    [XmlBody]
     public List<ListItem> m_items; // no explicit name, is taken from XmlCls
 }
 ```
@@ -166,6 +165,12 @@ public partial class MusicTrack
     public List<int> m_artists;
     
     [XmlBody("tags")]
-    public List<string> m_tags;
+    public List<MusicTag> m_tags;
+}
+
+[XmlCls("tags")]
+public partial class MusicTag
+{
+    [XmlBody] public string m_value;
 }
 ```

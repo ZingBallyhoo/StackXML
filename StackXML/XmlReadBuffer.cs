@@ -216,6 +216,8 @@ namespace StackXML
                             
                             throw new InvalidDataException("Unexpected data after handling full body");
                         }
+                        
+                        m_depth--;
                         return i + fullSpanIdx + 2 + nodeName.Length;
                     } else
                     {

@@ -232,6 +232,33 @@ namespace StackXML.Tests
             Assert.Equal(truthArray.m_bodies[1].m_fullBody, deserialized.m_bodies[1].m_fullBody);
         }
         
+        [Theory]
+        [InlineData(CDataMode.Off)]
+        [InlineData(CDataMode.On)]
+        [InlineData(CDataMode.OnEncoded)]
+        public static void HandledFullBodyShouldUpdateDepth(CDataMode cdataMode)
+        {
+            var para = new XmlReadParams
+            {
+                m_cdataMode = cdataMode,
+                m_maxDepth = 3
+            };
+            
+            var truthArray = new FullBodyArray();
+            for (var i = 0; i < para.m_maxDepth * 2; i++)
+            {
+                truthArray.m_bodies.Add(new StringBody() 
+                {
+                    m_fullBody = $"{i}" 
+                });
+            }
+            
+            var result = XmlWriteBuffer.SerializeStatic(truthArray, cdataMode);
+            
+            var deserialized = XmlReadBuffer.ReadStatic<FullBodyArray>(result, para);
+            Assert.Equal(truthArray.m_bodies.Count, deserialized.m_bodies.Count);
+        }
+        
         [Fact]
         public static void SerializePrimitiveBodies()
         {
